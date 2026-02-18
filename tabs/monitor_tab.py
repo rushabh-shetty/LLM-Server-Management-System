@@ -94,14 +94,6 @@ def render_monitor_tab():
 
     ## TODO: AI Assistant
     with st.expander("🤖 AI Assistant for Threshold Recommendations", expanded=False):
-        st.write("Ask Grok directly for safe threshold recommendations.")
-        st.write("Example prompts:")
-        st.code(
-            "- Safe max CPU temperature for HFT workloads?\n"
-            "- Recommended max for NIC rx_queue_0_drops on low-latency servers?\n"
-            "- Suggest thresholds for all my monitored metrics"
-        )
-        st.info("Future versions will support in-app responses via Ollama or Grok API.")
 
         get_ai_threshold()
 

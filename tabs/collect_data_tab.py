@@ -76,6 +76,8 @@ def render_collect_data_tab():
                         "reason": ""
                                             }
                 st.success("✅ Configuration loaded from sections_config.xlsx")
+                
+                st.session_state.sections = sections
 
             except Exception as e:
                 st.error(f"❌ Failed to load sections_config.xlsx: {e}")

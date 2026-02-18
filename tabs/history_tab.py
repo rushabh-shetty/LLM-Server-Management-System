@@ -7,8 +7,7 @@ from datetime import timedelta
 def render_history_tab():
     st.subheader("Historical Data Analysis")
     st.markdown("""
-    View and analyze the full monitoring history collected from the Live Monitoring tab.  
-    Select a metric to explore its complete trend, zoom with the time slider, and download the raw data.
+    View and analyze the full monitoring history collected from the Live Monitoring tab.
     """)
 
     csv_file = "monitoring_history.csv"
