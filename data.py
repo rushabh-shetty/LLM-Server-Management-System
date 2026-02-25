@@ -2,6 +2,8 @@
 
 import pandas as pd
 import os
+import subprocess
+import streamlit as st
 
 def load_sections():
     excel_file = "sections_config.xlsx"
@@ -28,6 +30,8 @@ def load_sections():
     df["HFT_Profile"] = df.get("HFT_Profile", "").astype(str).str.strip()
     
     return df
+
+# TODO: Helpers
 
 def get_available_hft_profiles():
     """Returns sorted unique profiles + 'All Sections'"""
@@ -60,3 +64,60 @@ def get_sections_for_profile(profile: str):
         }
     
     return sections
+
+def load_dynamic_df():
+    """Load and prepare dynamic_single metrics"""
+    try:
+        df = load_sections()
+        dynamic_df = df[df["Type"] == "dynamic_single"].copy()
+        dynamic_df["min_thresh"] = pd.to_numeric(
+            dynamic_df.get("Threshold_Min", pd.Series([None] * len(dynamic_df))), errors="coerce"
+        )
+        dynamic_df["max_thresh"] = pd.to_numeric(
+            dynamic_df.get("Threshold_Max", pd.Series([None] * len(dynamic_df))), errors="coerce"
+        )
+        dynamic_df["unit"] = dynamic_df.get("Unit", "").fillna("")
+        return dynamic_df
+    except Exception as e:
+        st.error(f"Failed to load config: {e}")
+        return pd.DataFrame()
+
+
+def build_system_profile(sections):
+    """Clean, short hardware fingerprint"""
+    profile = ["**Hardware Profile (from Collect Data):**"]
+    key_sections = ["CPU Info", "NIC Model Info", "Environmental Parameters",
+                    "Memory Info", "NUMA Topology", "NIC Firmware Info"]
+    for title in key_sections:
+        if title in sections:
+            profile.append(f"\n**{title}**")
+            for subtitle, data in list(sections[title].items())[:5]:
+                out = data.get("output", "").strip()
+                if out:
+                    clean = out.replace("\n", " ")[:280] + ("..." if len(out) > 280 else "")
+                    profile.append(f"- {subtitle}: {clean}")
+    return "\n".join(profile)
+
+
+def take_ai_snapshot(dynamic_df, monitored_metrics):
+    """Run current values for monitored metrics"""
+    snapshot = {}
+    iface = subprocess.getoutput(
+        "ip link | grep -oP '^[0-9]+: \\K[^:]+' | grep -v lo | head -n1"
+    ).strip() or "unknown"
+
+    for subtitle in monitored_metrics:
+        row = dynamic_df[dynamic_df["Subsection_Title"] == subtitle]
+        if not row.empty:
+            cmd_template = row.iloc[0]["Command"]
+            cmd = cmd_template.replace("{iface}", iface)
+            try:
+                output = subprocess.check_output(cmd, shell=True, text=True, stderr=subprocess.STDOUT).strip()
+                try:
+                    val = float(output) if output else 0.0
+                except ValueError:
+                    val = output[:100]
+                snapshot[subtitle] = val
+            except Exception:
+                snapshot[subtitle] = "error"
+    return snapshot

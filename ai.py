@@ -1,15 +1,15 @@
 import streamlit as st
 import ollama
 import pandas as pd
-import subprocess
-from data import load_sections, get_sections_for_profile
 import json
 import re
 
-# TODO: General AI CONFIG
+from data import load_sections, get_sections_for_profile, load_dynamic_df, build_system_profile, take_ai_snapshot
+
+# TODO: Generic chat UI
 
 def render_ai_chat(system_prompt, welcome_message="Hi! How can I help you today?", input_placeholder="Type your question..."):
-    """Generic chat UI + streaming — fully reusable for any future AI mode"""
+
     if "ai_messages" not in st.session_state:
         st.session_state.ai_messages = []
 
@@ -50,69 +50,12 @@ def render_ai_chat(system_prompt, welcome_message="Hi! How can I help you today?
 
         st.session_state.ai_messages.append({"role": "assistant", "content": full_response})
 
-# TODO: Helpers
-
-def load_dynamic_df():
-    """Load and prepare dynamic_single metrics"""
-    try:
-        df = load_sections()
-        dynamic_df = df[df["Type"] == "dynamic_single"].copy()
-        dynamic_df["min_thresh"] = pd.to_numeric(
-            dynamic_df.get("Threshold_Min", pd.Series([None] * len(dynamic_df))), errors="coerce"
-        )
-        dynamic_df["max_thresh"] = pd.to_numeric(
-            dynamic_df.get("Threshold_Max", pd.Series([None] * len(dynamic_df))), errors="coerce"
-        )
-        dynamic_df["unit"] = dynamic_df.get("Unit", "").fillna("")
-        return dynamic_df
-    except Exception as e:
-        st.error(f"Failed to load config: {e}")
-        return pd.DataFrame()
-
-
-def build_system_profile(sections):
-    """Clean, short hardware fingerprint"""
-    profile = ["**Hardware Profile (from Collect Data):**"]
-    key_sections = ["CPU Info", "NIC Model Info", "Environmental Parameters",
-                    "Memory Info", "NUMA Topology", "NIC Firmware Info"]
-    for title in key_sections:
-        if title in sections:
-            profile.append(f"\n**{title}**")
-            for subtitle, data in list(sections[title].items())[:5]:
-                out = data.get("output", "").strip()
-                if out:
-                    clean = out.replace("\n", " ")[:280] + ("..." if len(out) > 280 else "")
-                    profile.append(f"- {subtitle}: {clean}")
-    return "\n".join(profile)
-
-
-def take_ai_snapshot(dynamic_df, monitored_metrics):
-    """Run current values for monitored metrics"""
-    snapshot = {}
-    iface = subprocess.getoutput(
-        "ip link | grep -oP '^[0-9]+: \\K[^:]+' | grep -v lo | head -n1"
-    ).strip() or "unknown"
-
-    for subtitle in monitored_metrics:
-        row = dynamic_df[dynamic_df["Subsection_Title"] == subtitle]
-        if not row.empty:
-            cmd_template = row.iloc[0]["Command"]
-            cmd = cmd_template.replace("{iface}", iface)
-            try:
-                output = subprocess.check_output(cmd, shell=True, text=True, stderr=subprocess.STDOUT).strip()
-                try:
-                    val = float(output) if output else 0.0
-                except ValueError:
-                    val = output[:100]
-                snapshot[subtitle] = val
-            except Exception:
-                snapshot[subtitle] = "error"
-    return snapshot
-
-# TODO: Threshold
+# TODO: AI Threshold
 
 def get_ai_threshold():
+
     """Main AI assistant for HFT threshold recommendations"""
+
     st.markdown("""
     Chat with **Llama 3.1 8B** for personalized HFT threshold recommendations.  
     It knows your exact hardware and every monitored metric.
@@ -133,6 +76,7 @@ def get_ai_threshold():
         system_profile = build_system_profile(st.session_state.sections)
     else:
         system_profile = "**⚠️ No hardware profile yet** — Go to the **Data** tab and click 'Collect System Information' first."
+        st.warning(system_profile)
 
     # Refresh snapshot buttons
     col_refresh, col_clear = st.columns(2)
@@ -174,7 +118,7 @@ def get_ai_threshold():
     )
 
     # Transparency expander
-    with st.expander("📋 View Full Context Being Sent to AI (for transparency/debugging)", expanded=False):
+    with st.expander("View Full Context Being Sent to AI", expanded=False):
         st.markdown("**Hardware Profile**")
         st.markdown(system_profile)
         st.markdown("**Monitored Metrics + Commands + Current Values**")
@@ -202,7 +146,7 @@ RULES (follow strictly):
     # Threshold-specific welcome + placeholder
     welcome = (
         "Hi! Ask me for safe **min/max thresholds** on any monitored metric. "
-        "Click 'Refresh Snapshot' above for even better answers."
+        "Click 'Refresh Snapshot' before running it."
     )
     placeholder = "Ask about thresholds... (e.g. suggest for all my metrics)"
 
@@ -212,7 +156,7 @@ RULES (follow strictly):
 # TODO: Performance analyzer
 
 def perform_hft_analysis(selected_profile: str):
-    """Improved parsing - handles model returning JSON inside analysis field"""
+
     if "sections" not in st.session_state:
         st.error("Run the Data tab first.")
         return None, [], {}

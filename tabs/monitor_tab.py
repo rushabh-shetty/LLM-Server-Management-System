@@ -6,6 +6,7 @@ import csv
 import os
 import pandas as pd
 from datetime import datetime, timedelta
+
 from data import load_sections
 from ai import get_ai_threshold
 
@@ -16,7 +17,10 @@ def render_monitor_tab():
     Select metrics to monitor/log/alert on (all enabled by default), and choose which to graph live.
     """)
 
-    # Load and prepare data
+    # TODO: Load and prepare data
+
+    ## Data
+
     try:
         df = load_sections()
     except Exception as e:
@@ -28,20 +32,25 @@ def render_monitor_tab():
         st.info("No `dynamic_single` metrics defined in Excel yet.")
         return
 
-    # Detect interface
+    # TODO: General Varialbles
+
+    ## Detect interface
+
     iface = subprocess.getoutput(
         "ip link | grep -oP '^[0-9]+: \\K[^:]+' | grep -v lo | head -n1"
     ).strip()
     if not iface:
         iface = "unknown"
 
-    # Prepare thresholds/units
+    ## Prepare thresholds/units
+
     dynamic_df["command"] = dynamic_df["Command"].str.replace("{iface}", iface)
     dynamic_df["min_thresh"] = pd.to_numeric(dynamic_df.get("Threshold_Min", pd.Series([None]*len(dynamic_df))), errors="coerce")
     dynamic_df["max_thresh"] = pd.to_numeric(dynamic_df.get("Threshold_Max", pd.Series([None]*len(dynamic_df))), errors="coerce")
     dynamic_df["unit"] = dynamic_df.get("Unit", "").fillna("")
 
-    # Session state
+    ## Session state
+
     if "monitoring_running" not in st.session_state:
         st.session_state.monitoring_running = False
     if "monitor_history" not in st.session_state:
@@ -55,13 +64,16 @@ def render_monitor_tab():
 
     # TODO: Metrics to Monitor
 
-    with st.expander("**📊 Metrics to Monitor** (run, log, alert — all enabled by default)", expanded=True):
+    with st.expander("**Metrics to Monitor** (run, log, alert — all enabled by default)", expanded=True):
+        
         col_sel1, col_sel2 = st.columns(2)
+        
         with col_sel1:
             if st.button("Select All", key="select_all_monitor"):
                 st.session_state.monitored_metrics = list(dynamic_df["Subsection_Title"])
                 for subtitle in dynamic_df["Subsection_Title"]:
                     st.session_state[f"monitor_{subtitle}"] = True
+        
         with col_sel2:
             if st.button("Deselect All", key="deselect_all_monitor"):
                 st.session_state.monitored_metrics = []
@@ -69,7 +81,9 @@ def render_monitor_tab():
                     st.session_state[f"monitor_{subtitle}"] = False
 
         groups = dynamic_df.groupby("Section_Title")
+        
         monitored = {}
+        
         for section, group in groups:
             with st.expander(f"**{section}** ({len(group)} metrics)", expanded=True):
                 for _, row in group.iterrows():
@@ -92,21 +106,24 @@ def render_monitor_tab():
 
         st.session_state.monitored_metrics = [k for k, v in monitored.items() if v]
 
-    ## TODO: AI Assistant
-    with st.expander("🤖 AI Assistant for Threshold Recommendations", expanded=False):
+    ## TODO: AI Thershold Assistant
+    
+    with st.expander("AI Assistant for Threshold Recommendations", expanded=False):
 
         get_ai_threshold()
 
     # TODO: Monitoring Controls
 
-    st.markdown("### ▶️ Monitoring Controls")
+    st.markdown("### Monitoring Controls")
 
-    ## TODO: Live Graph Display Selection
+    ## Live Graph Display Selection
 
     if st.session_state.monitored_metrics:
 
-        with st.expander("**📈 Live Graph Display** (choose which monitored metrics to visualize live)", expanded=True):
+        with st.expander("**Live Graph Display** (choose which monitored metrics to visualize live)", expanded=True):
+
             col_disp1, col_disp2 = st.columns(2)
+
             with col_disp1:
                 if st.button("Show All Monitored", key="show_all_graphs"):
                     st.session_state.displayed_metrics = st.session_state.monitored_metrics[:]
@@ -129,7 +146,7 @@ def render_monitor_tab():
 
             st.session_state.displayed_metrics = [k for k, v in displayed.items() if v]
 
-    ## TODO: FILTER
+    ## Filter
 
     interval = st.selectbox("Update interval", [10, 30, 60, 300], index=2, format_func=lambda x: f"{x} seconds")
 
@@ -139,17 +156,19 @@ def render_monitor_tab():
         start_label = "Start Monitoring" if not st.session_state.monitoring_running else "Pause Monitoring"
         if st.button(start_label, type="primary", width="stretch"):
             st.session_state.monitoring_running = not st.session_state.monitoring_running
+    
     with col_ctrl2:
         if st.button("Stop & Clear Live Graphs", type="secondary", width="stretch"):
             st.session_state.monitoring_running = False
             st.session_state.monitor_history = {}
             st.session_state.active_alerts = {}
-
+    
     if not st.session_state.monitored_metrics:
         st.warning("⚠️ Select at least one metric in 'Metrics to Monitor' to start.")
         st.stop()
 
-    ## TODO: Live Monitoring Fragment
+    ## Live Monitoring Fragment
+
     @st.fragment
     def live_monitoring():
 
@@ -172,7 +191,7 @@ def render_monitor_tab():
 
                     current_values[subtitle] = value
 
-                    # Breach check (thresholds optional)
+                    ### Breach check (thresholds optional)
                     breached = False
                     if pd.notna(value):
                         if pd.notna(row["min_thresh"]) and value < row["min_thresh"]:
@@ -186,14 +205,14 @@ def render_monitor_tab():
                     else:
                         st.session_state.active_alerts.pop(subtitle, None)
 
-                    # Pruned in-memory history
+                    ### Pruned in-memory history
                     if subtitle not in st.session_state.monitor_history:
                         st.session_state.monitor_history[subtitle] = []
                     st.session_state.monitor_history[subtitle].append((now, value))
                     if len(st.session_state.monitor_history[subtitle]) > 1000:
                         st.session_state.monitor_history[subtitle] = st.session_state.monitor_history[subtitle][-1000:]
 
-                    # Persistent CSV append
+                    ### Persistent CSV append
                     csv_file = "monitoring_history.csv"
                     row_data = {
                         "timestamp": now.isoformat(),
@@ -208,7 +227,7 @@ def render_monitor_tab():
                             writer.writeheader()
                         writer.writerow(row_data)
 
-                # Current values table
+                ### Current values table
                 st.markdown("#### 📋 Current Values")
                 table_data = []
                 for subtitle in st.session_state.monitored_metrics:
@@ -225,7 +244,7 @@ def render_monitor_tab():
                     })
                 st.dataframe(table_data, width="stretch", hide_index=True)
 
-                # Alerts
+                ### Alerts
                 st.markdown("#### ⚠️ Active Threshold Breaches")
                 if st.session_state.active_alerts:
                     st.error("One or more metrics are outside thresholds")
@@ -234,7 +253,7 @@ def render_monitor_tab():
                 else:
                     st.success("✅ All monitored metrics within thresholds")
 
-                # Live graphs
+                ### Live graphs
                 if st.session_state.displayed_metrics:
                     st.markdown("#### 📈 Live Trends (last ~1000 points)")
                     for subtitle in st.session_state.displayed_metrics:
@@ -248,7 +267,7 @@ def render_monitor_tab():
 
             time.sleep(interval)
 
-        # Paused state
+        ### Paused state
         if st.session_state.monitored_metrics:
             st.info("Monitoring paused — live graphs frozen, full history preserved in CSV.")
 

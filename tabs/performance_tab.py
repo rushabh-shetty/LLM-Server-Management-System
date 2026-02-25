@@ -3,11 +3,13 @@ import os
 from datetime import datetime
 import pandas as pd
 
-from data import get_available_hft_profiles, load_sections
-from ai import perform_hft_analysis, build_system_profile, load_dynamic_df, take_ai_snapshot
+from data import get_available_hft_profiles, load_sections, build_system_profile, load_dynamic_df, take_ai_snapshot
+from ai import perform_hft_analysis
 
 def render_performance_tab():
-    st.subheader("⚡ HFT Performance Optimizer")
+
+    st.subheader("Performance Optimizer")
+
     st.markdown("Choose profile → Preview context → Run → Select recommendations → Generate script.")
 
     # Status
@@ -20,8 +22,8 @@ def render_performance_tab():
     profiles = get_available_hft_profiles()
     selected_profile = st.selectbox("Select HFT Profile", profiles, index=0)
 
-    # === LIVE PREVIEW ===
-    with st.expander("📋 Preview what will be sent to Ollama", expanded=True):
+    # TODO: AI context
+    with st.expander("Preview what will be sent to AI", expanded=True):
         if "sections" not in st.session_state:
             st.info("Run Data tab first")
         else:
@@ -54,7 +56,8 @@ def render_performance_tab():
                 st.dataframe(pd.DataFrame(list(snapshot.items()), columns=["Metric", "Value"]), 
                              use_container_width=True, hide_index=True)
 
-    # Run button
+    # TODO: Run button
+
     if st.button("🚀 Run Performance Analysis", type="primary", use_container_width=True):
         with st.status("Running analysis...", expanded=True) as status:
             status.update(label="Asking Ollama...", state="running")
@@ -70,7 +73,8 @@ def render_performance_tab():
         }
         st.rerun()
 
-    # Results
+    # TODO: Results
+
     if "last_analysis" in st.session_state:
         last = st.session_state.last_analysis
         st.success(f"**{last['profile']}** — {last['timestamp']}")
@@ -125,6 +129,8 @@ def render_performance_tab():
                 st.markdown("**Dynamic values**")
                 st.dataframe(pd.DataFrame(list(ctx["dynamic_snapshot"].items()), columns=["Metric", "Value"]), 
                              use_container_width=True, hide_index=True)
+
+# TODO: Tunning file
 
 def generate_tuning_files(last):
     selected = [r for r in last["recommendations"] if r.get("id") in st.session_state.get("selected_recs", [])]
