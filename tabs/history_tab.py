@@ -51,7 +51,7 @@ def render_history_tab():
 
     if len(metric_df) <= 1 or min_t == max_t:
         st.info("Not enough data points for time range selection — showing all available data.")
-        st.line_chart(metric_df.set_index("timestamp")["value"], use_container_width=True)
+        st.line_chart(metric_df.set_index("timestamp")["value"], width='content')
     else:
         # Default to last 24 hours if history is long, otherwise full range
         default_end = max_t
@@ -76,7 +76,7 @@ def render_history_tab():
         if view_df.empty:
             st.info("No data in selected time range.")
         else:
-            st.line_chart(view_df.set_index("timestamp")["value"], use_container_width=True)
+            st.line_chart(view_df.set_index("timestamp")["value"], width='content')
 
             # Basic stats for the visible range
             values = view_df["value"].dropna()

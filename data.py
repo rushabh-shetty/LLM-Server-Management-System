@@ -121,3 +121,14 @@ def take_ai_snapshot(dynamic_df, monitored_metrics):
             except Exception:
                 snapshot[subtitle] = "error"
     return snapshot
+
+def build_full_raw_text(sections):
+    """Reconstruct exact format like original parse_system_info()"""
+    text = ""
+    for title, subs in sections.items():
+        text += f"=== {title} ===\n"
+        for subtitle, data in subs.items():
+            cmd = data.get("command", "").strip()
+            out = data.get("output", "").strip() or "(no output yet)"
+            text += f"--- {subtitle} ---\n{cmd}\n{out}\n\n"
+    return text.strip()

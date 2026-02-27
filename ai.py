@@ -4,11 +4,11 @@ import pandas as pd
 import json
 import re
 
-from data import load_sections, get_sections_for_profile, load_dynamic_df, build_system_profile, take_ai_snapshot
+from data import load_sections, get_sections_for_profile, load_dynamic_df, build_system_profile, take_ai_snapshot, build_full_raw_text, load_dynamic_df
 
 # TODO: Generic chat UI
 
-def render_ai_chat(system_prompt, welcome_message="Hi! How can I help you today?", input_placeholder="Type your question..."):
+def render_ai_chat(system_prompt, welcome_message="Hi! How can I help you today?", input_placeholder="Type your question...", clear_key="clear_ai_chat"):
 
     if "ai_messages" not in st.session_state:
         st.session_state.ai_messages = []
@@ -17,7 +17,7 @@ def render_ai_chat(system_prompt, welcome_message="Hi! How can I help you today?
         with st.chat_message(msg["role"]):
             st.markdown(msg["content"])
 
-    if st.session_state.ai_messages and st.button("🗑️ Clear Chat", key="clear_ai_chat"):
+    if st.session_state.ai_messages and st.button("🗑️ Clear Chat", key=clear_key):
         st.session_state.ai_messages = []
         st.rerun()
 
@@ -272,3 +272,179 @@ Output ONLY a valid JSON object. Nothing else. No explanations before or after.
         error_msg = f"Ollama error: {str(e)}"
         st.error(error_msg)
         return error_msg, [], context_for_ui
+    
+#TODO: Upgrade AI
+
+def perform_upgrade_analysis2(focus_keys: list[str], budget: float | None = None):
+    """Upgrade analysis - supports multiple categories"""
+    if "sections" not in st.session_state:
+        return None, [], ""
+
+    all_sections = st.session_state.sections
+
+    # Build focused sections (multiple allowed)
+    focused_sections = {}
+    focus_names = []
+    for key in focus_keys:
+        if key in ("General Overview", "All Sections"):
+            focused_sections.update(all_sections)
+            focus_names.append("General Overview")
+        else:
+            df = load_sections()
+            profile_titles = df[df["HFT_Profile"] == key]["Section_Title"].unique().tolist()
+            for t in profile_titles:
+                if t in all_sections:
+                    focused_sections[t] = all_sections[t]
+            focus_names.append(key)
+
+    focus_name_str = " + ".join(focus_names)
+
+    short_summary = build_system_profile(all_sections)
+    full_raw = build_full_raw_text(focused_sections)
+
+    dynamic_df = load_dynamic_df()
+    monitored = [sub for subs in focused_sections.values() for sub in subs]
+    snapshot = take_ai_snapshot(dynamic_df, monitored) if monitored else {}
+
+    budget_text = f"maximum budget of ${budget:,.0f}" if budget and budget > 0 else "no budget limit"
+
+    system_prompt = f"""You are an expert HFT/low-latency systems engineer.
+
+Full hardware profile:
+{short_summary}
+
+Focused data for: {focus_name_str}
+{full_raw}
+
+Current dynamic values:
+{str(snapshot) if snapshot else "None"}
+
+Analyze this system for high-frequency trading optimization.
+Provide a detailed analysis and **at least 3 practical hardware/software upgrade recommendations**.
+Consider {budget_text}.
+
+Output ONLY a valid JSON object. Nothing else. No explanations before or after.
+{{
+  "analysis": "Your detailed analysis here - be specific about latency/throughput gains",
+  "recommendations": [
+    {{
+      "title": "Short clear title",
+      "description": "1-2 sentences why it helps HFT",
+      "cost": "Realistic number USD"
+    }}
+  ]
+}}"""
+
+    try:
+        messages = [
+            {"role": "system", "content": system_prompt},
+            {"role": "user", "content": "Generate the analysis and recommendations now."}
+        ]
+        stream = ollama.chat(model="llama3.1:8b", messages=messages, stream=True)
+        full_response = ""
+        placeholder = st.empty()
+        for chunk in stream:
+            content = chunk["message"].get("content", "")
+            full_response += content
+            placeholder.markdown(full_response + "▌")
+        placeholder.empty()
+
+        # Robust JSON parsing
+        full_response = full_response.strip()
+
+        # Try 1: whole response is JSON
+        try:
+            data = json.loads(full_response)
+        except json.JSONDecodeError:
+            data = None
+
+        # Try 2: extract largest JSON block
+        if not data:
+            json_match = re.search(r'(\{[\s\S]*\})', full_response, re.DOTALL)
+            if json_match:
+                try:
+                    data = json.loads(json_match.group(1))
+                except json.JSONDecodeError:
+                    data = None
+
+        if data and isinstance(data, dict):
+            analysis = data.get("analysis", full_response)
+            recommendations = data.get("recommendations", [])
+        else:
+            analysis = full_response
+            recommendations = []
+
+        # Fallback if recommendations empty
+        if not recommendations:
+            recommendations = [{"title": "General HFT Upgrade", "description": "Run again or check Ollama response.", "cost": "N/A"}]
+
+        return analysis, recommendations, full_raw
+
+    except Exception as e:
+        st.error(f"Ollama error: {e}")
+        return f"Error: {e}", [], full_raw
+
+def perform_upgrade_analysis(focus_keys: list[str], budget: float | None = None):
+    """Upgrade analysis - supports multiple categories"""
+    if "sections" not in st.session_state:
+        return None, [], "", ""
+
+    all_sections = st.session_state.sections
+
+    focused_sections = {}
+    focus_names = []
+    for key in focus_keys:
+        if key in ("General Overview", "All Sections"):
+            focused_sections.update(all_sections)
+            focus_names.append("General Overview")
+        else:
+            df = load_sections()
+            profile_titles = df[df["HFT_Profile"] == key]["Section_Title"].unique().tolist()
+            for t in profile_titles:
+                if t in all_sections:
+                    focused_sections[t] = all_sections[t]
+            focus_names.append(key)
+
+    focus_name_str = " + ".join(focus_names)
+
+    short_summary = build_system_profile(all_sections)
+    full_raw = build_full_raw_text(focused_sections)
+
+    dynamic_df = load_dynamic_df()
+    monitored = [sub for subs in focused_sections.values() for sub in subs]
+    snapshot = take_ai_snapshot(dynamic_df, monitored) if monitored else {}
+
+    budget_text = f"maximum budget of ${budget:,.0f}" if budget and budget > 0 else "no budget limit"
+
+    system_prompt = f"""You are an expert HFT/low-latency systems engineer.
+
+Full hardware profile:
+{short_summary}
+
+Focused data for: {focus_name_str}
+{full_raw}
+
+Current dynamic values:
+{str(snapshot) if snapshot else "None"}
+
+Analyze this system for high-frequency trading optimization.
+Provide a detailed analysis and at least 3 practical hardware/software upgrade recommendations.
+Consider {budget_text}.
+
+Respond in clear, readable markdown with sections for Analysis and Recommendations."""
+
+    try:
+        stream = ollama.chat(model="llama3.1:8b", messages=[{"role": "system", "content": system_prompt}], stream=True)
+        full_response = ""
+        placeholder = st.empty()
+        for chunk in stream:
+            content = chunk["message"].get("content", "")
+            full_response += content
+            placeholder.markdown(full_response + "▌")
+        placeholder.empty()
+
+        return full_response, [], full_raw, full_response
+
+    except Exception as e:
+        st.error(f"Ollama error: {e}")
+        return f"Error: {e}", [], full_raw, ""

@@ -54,11 +54,11 @@ def render_performance_tab():
             if snapshot:
                 st.markdown("**Dynamic values**")
                 st.dataframe(pd.DataFrame(list(snapshot.items()), columns=["Metric", "Value"]), 
-                             use_container_width=True, hide_index=True)
+                             width='stretch', hide_index=True)
 
     # TODO: Run button
 
-    if st.button("🚀 Run Performance Analysis", type="primary", use_container_width=True):
+    if st.button("🚀 Run Performance Analysis", type="primary", width='stretch'):
         with st.status("Running analysis...", expanded=True) as status:
             status.update(label="Asking Ollama...", state="running")
             analysis_md, recommendations, context_for_ui = perform_hft_analysis(selected_profile)
@@ -107,15 +107,15 @@ def render_performance_tab():
 
         col1, col2, col3 = st.columns(3)
         with col1:
-            if st.button("Select All", use_container_width=True, key="select_all_perf"):
+            if st.button("Select All", width='stretch', key="select_all_perf"):
                 st.session_state.selected_recs = [r.get("id") for r in last["recommendations"] if r.get("id")]
                 st.rerun()
         with col2:
-            if st.button("Deselect All", use_container_width=True, key="deselect_all_perf"):
+            if st.button("Deselect All", width='stretch', key="deselect_all_perf"):
                 st.session_state.selected_recs = []
                 st.rerun()
         with col3:
-            if st.button("📥 Generate files", type="primary", use_container_width=True, key="generate_files_perf"):
+            if st.button("📥 Generate files", type="primary", width='stretch', key="generate_files_perf"):
                 generate_tuning_files(last)
 
         # Post-run context
@@ -128,7 +128,7 @@ def render_performance_tab():
             if ctx.get("dynamic_snapshot"):
                 st.markdown("**Dynamic values**")
                 st.dataframe(pd.DataFrame(list(ctx["dynamic_snapshot"].items()), columns=["Metric", "Value"]), 
-                             use_container_width=True, hide_index=True)
+                             width='stretch', hide_index=True)
 
 # TODO: Tunning file
 
