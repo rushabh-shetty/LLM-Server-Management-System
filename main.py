@@ -6,10 +6,15 @@ from tabs.history_tab import render_history_tab
 from tabs.performance_tab import render_performance_tab
 from tabs.upgrade_tab import render_upgrade_tab
 
-st.set_page_config(page_title="HFT System Info Collector", layout="wide")
-st.title("LLM Management System")
+# TODO: Page Config
 
-# === Pestañas ===
+st.set_page_config(page_title="LLM Manager", layout="wide")
+
+# TODO: Title
+
+st.title("LLM Management System", text_alignment="center")
+
+# TODO: Tabs
 
 tab_data, tab_monitor, tab_history, tab_performance, tab_upgrade = st.tabs(["Data", "Monitor Data", "Trends", "Performance", "Upgrade"])
 

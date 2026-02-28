@@ -54,19 +54,6 @@ def render_ai_chat(system_prompt, welcome_message="Hi! How can I help you today?
 
 def get_ai_threshold():
 
-    """Main AI assistant for HFT threshold recommendations"""
-
-    st.markdown("""
-    Chat with **Llama 3.1 8B** for personalized HFT threshold recommendations.  
-    It knows your exact hardware and every monitored metric.
-    """)
-
-    st.write("Example prompts:")
-    st.code(
-        "- Recommended max for NIC rx_queue_0_drops on low-latency servers?\n"
-        "- Suggest thresholds for all my monitored metrics"
-    )
-
     # Load dynamic_single metrics
     dynamic_df = load_dynamic_df()
     monitored_metrics = st.session_state.get("monitored_metrics", [])
@@ -79,9 +66,9 @@ def get_ai_threshold():
         st.warning(system_profile)
 
     # Refresh snapshot buttons
-    col_refresh, col_clear = st.columns(2)
+    col_refresh, col_clear, cl3 = st.columns([1,1,3])
     with col_refresh:
-        if st.button("📊 Refresh Snapshot for AI (run current values)", key="ai_refresh_snapshot", type="secondary"):
+        if st.button("Get Snapshot for AI (better recommendations)", use_container_width=True, key="ai_refresh_snapshot", type="secondary"):
             if monitored_metrics and not dynamic_df.empty:
                 snapshot = take_ai_snapshot(dynamic_df, monitored_metrics)
                 st.session_state.ai_snapshot = snapshot
@@ -91,7 +78,7 @@ def get_ai_threshold():
                 st.warning("Select at least one metric in Monitor tab first.")
 
     with col_clear:
-        if st.button("Clear Snapshot", key="ai_clear_snapshot"):
+        if st.button("Clear Snapshot", use_container_width=True, key="ai_clear_snapshot"):
             st.session_state.pop("ai_snapshot", None)
             st.rerun()
 
@@ -144,11 +131,8 @@ RULES (follow strictly):
 """
 
     # Threshold-specific welcome + placeholder
-    welcome = (
-        "Hi! Ask me for safe **min/max thresholds** on any monitored metric. "
-        "Click 'Refresh Snapshot' before running it."
-    )
-    placeholder = "Ask about thresholds... (e.g. suggest for all my metrics)"
+    welcome = ("Hi! Ask me for safe **min/max thresholds** on any monitored metric.")
+    placeholder = "Ask about thresholds... (e.g. recommended max for NIC rx_queue_0_drops)"
 
     # Generic reusable chat
     render_ai_chat(system_prompt, welcome_message=welcome, input_placeholder=placeholder)
@@ -158,10 +142,10 @@ RULES (follow strictly):
 def perform_hft_analysis(selected_profile: str):
 
     if "sections" not in st.session_state:
-        st.error("Run the Data tab first.")
-        return None, [], {}
+        return "❌ No system data collected yet. Run the Data tab first.", [], {}
 
     all_sections = st.session_state.sections
+
     if selected_profile == "All Sections":
         profile_sections = all_sections
     else:
@@ -179,9 +163,7 @@ def perform_hft_analysis(selected_profile: str):
             full_profile_data += f"--- {subtitle} ---\n{cmd}\n{out}\n"
 
     dynamic_df = load_dynamic_df()
-    monitored = []
-    for subs in profile_sections.values():
-        monitored.extend(subs.keys())
+    monitored = [sub for subs in profile_sections.values() for sub in subs]
     dynamic_snapshot = take_ai_snapshot(dynamic_df, monitored) if monitored else {}
 
     context_for_ui = {
@@ -190,6 +172,7 @@ def perform_hft_analysis(selected_profile: str):
         "dynamic_snapshot": dynamic_snapshot
     }
 
+    # === STRONG SYSTEM PROMPT (forces JSON) ===
     system_prompt = f"""You are an expert HFT/low-latency Linux performance engineer.
 
 Hardware summary:
@@ -201,9 +184,12 @@ Detailed data for the selected profile ({selected_profile}):
 Current dynamic values:
 {json.dumps(dynamic_snapshot, indent=2) if dynamic_snapshot else "None"}
 
-Output ONLY a valid JSON object. Nothing else. No explanations before or after.
+You MUST analyze this system and output **EXACTLY** a valid JSON object.
+Do not add any explanation, markdown, or extra text before or after the JSON.
+
+Use this exact structure:
 {{
-  "analysis": "=== Performance Analysis ===\n\nYour full markdown report here...",
+  "analysis": "=== Performance Analysis ===\\n\\nYour full markdown report here with latency/throughput details...",
   "recommendations": [
     {{
       "id": "rec-001",
@@ -217,30 +203,42 @@ Output ONLY a valid JSON object. Nothing else. No explanations before or after.
   ]
 }}"""
 
+    # === MESSAGES THAT GUARANTEE OLLAMA ANSWERS (same trick that fixed Upgrade tab) ===
     messages = [
         {"role": "system", "content": system_prompt},
-        {"role": "user", "content": "Generate the JSON now."}
+        {"role": "user", "content": "Generate the JSON analysis and recommendations NOW. Output ONLY the JSON object."}
     ]
 
     try:
-        stream = ollama.chat(model="llama3.1:8b", messages=messages, stream=True)
-        full_response = ""
-        placeholder = st.empty()
-        for chunk in stream:
-            full_response += chunk["message"].get("content", "")
-            placeholder.markdown(full_response + "▌")
-        placeholder.empty()
+        with st.status("Asking Ollama for JSON analysis...", expanded=True) as status:
+            stream = ollama.chat(
+                model="llama3.1:8b",
+                messages=messages,
+                stream=True,
+                options={
+                    "temperature": 0.1,   # very low = strict JSON
+                    "top_p": 0.9,
+                    "num_ctx": 8192,
+                }
+            )
 
-        # === ROBUST JSON PARSING ===
+            full_response = ""
+            placeholder = st.empty()
+            for chunk in stream:
+                content = chunk["message"].get("content", "")
+                full_response += content
+                placeholder.markdown(full_response + "▌")
+            placeholder.empty()
+            status.update(label="✅ JSON received — parsing...", state="complete")
+
+        # === ROBUST JSON PARSING (same as before but improved) ===
         full_response = full_response.strip()
 
-        # Try 1: whole response is JSON
         try:
             data = json.loads(full_response)
         except:
             data = None
 
-        # Try 2: extract largest JSON block
         if not data:
             json_match = re.search(r'(\{[\s\S]*\})', full_response, re.DOTALL)
             if json_match:
@@ -256,9 +254,8 @@ Output ONLY a valid JSON object. Nothing else. No explanations before or after.
             analysis = full_response
             recs = []
 
-        # Final safety
+        # Safety fallback
         if not recs and '"recommendations"' in full_response:
-            # Last attempt: manual extraction
             try:
                 rec_match = re.search(r'"recommendations":\s*(\[[\s\S]*?\])', full_response, re.DOTALL)
                 if rec_match:
@@ -269,20 +266,20 @@ Output ONLY a valid JSON object. Nothing else. No explanations before or after.
         return analysis, recs, context_for_ui
 
     except Exception as e:
-        error_msg = f"Ollama error: {str(e)}"
+        error_msg = f"❌ Ollama error: {str(e)}\nMake sure `ollama serve` is running."
         st.error(error_msg)
         return error_msg, [], context_for_ui
-    
+
 #TODO: Upgrade AI
 
-def perform_upgrade_analysis2(focus_keys: list[str], budget: float | None = None):
-    """Upgrade analysis - supports multiple categories"""
+def perform_upgrade_analysis(focus_keys: list[str], budget: float | None = None):
+
     if "sections" not in st.session_state:
-        return None, [], ""
+        return "❌ No system data collected yet. Run the Data tab first.", [], ""
 
     all_sections = st.session_state.sections
 
-    # Build focused sections (multiple allowed)
+    # Build focused sections (supports multiple categories)
     focused_sections = {}
     focus_names = []
     for key in focus_keys:
@@ -308,7 +305,8 @@ def perform_upgrade_analysis2(focus_keys: list[str], budget: float | None = None
 
     budget_text = f"maximum budget of ${budget:,.0f}" if budget and budget > 0 else "no budget limit"
 
-    system_prompt = f"""You are an expert HFT/low-latency systems engineer.
+    # === STRONG SYSTEM PROMPT ===
+    system_prompt = f"""You are an expert HFT/low-latency systems engineer with 15+ years optimizing trading infrastructure.
 
 Full hardware profile:
 {short_summary}
@@ -323,128 +321,56 @@ Analyze this system for high-frequency trading optimization.
 Provide a detailed analysis and **at least 3 practical hardware/software upgrade recommendations**.
 Consider {budget_text}.
 
-Output ONLY a valid JSON object. Nothing else. No explanations before or after.
-{{
-  "analysis": "Your detailed analysis here - be specific about latency/throughput gains",
-  "recommendations": [
-    {{
-      "title": "Short clear title",
-      "description": "1-2 sentences why it helps HFT",
-      "cost": "Realistic number USD"
-    }}
-  ]
-}}"""
+Respond in clear, professional markdown with these exact sections:
+
+### Analysis
+(detailed paragraph form, mention latency/throughput gains, bottlenecks, etc.)
+
+### Recommendations
+- **Title 1**  
+  Description...  
+  Estimated cost: $X  
+  Expected HFT impact: ...
+
+- **Title 2**  
+  ...
+
+Be specific, realistic, and conservative. Never say "it depends" — give concrete advice."""
+
+    # === MESSAGES THAT GUARANTEE OLLAMA ANSWERS ===
+    messages = [
+        {"role": "system", "content": system_prompt},
+        {"role": "user", "content": "Generate the full upgrade analysis and recommendations NOW."}
+    ]
 
     try:
-        messages = [
-            {"role": "system", "content": system_prompt},
-            {"role": "user", "content": "Generate the analysis and recommendations now."}
-        ]
-        stream = ollama.chat(model="llama3.1:8b", messages=messages, stream=True)
-        full_response = ""
-        placeholder = st.empty()
-        for chunk in stream:
-            content = chunk["message"].get("content", "")
-            full_response += content
-            placeholder.markdown(full_response + "▌")
-        placeholder.empty()
+        with st.status("Asking Ollama (Llama 3.1 8B)...", expanded=True) as status:
+            stream = ollama.chat(
+                model="llama3.1:8b",
+                messages=messages,
+                stream=True,
+                # These options make responses much more reliable for demos/role-play
+                options={
+                    "temperature": 0.7,
+                    "top_p": 0.92,
+                    "num_ctx": 8192,
+                }
+            )
 
-        # Robust JSON parsing
-        full_response = full_response.strip()
+            full_response = ""
+            placeholder = st.empty()
 
-        # Try 1: whole response is JSON
-        try:
-            data = json.loads(full_response)
-        except json.JSONDecodeError:
-            data = None
+            for chunk in stream:
+                content = chunk["message"].get("content", "")
+                full_response += content
+                placeholder.markdown(full_response + "▌")
 
-        # Try 2: extract largest JSON block
-        if not data:
-            json_match = re.search(r'(\{[\s\S]*\})', full_response, re.DOTALL)
-            if json_match:
-                try:
-                    data = json.loads(json_match.group(1))
-                except json.JSONDecodeError:
-                    data = None
+            placeholder.empty()
+            status.update(label="✅ Analysis complete!", state="complete")
 
-        if data and isinstance(data, dict):
-            analysis = data.get("analysis", full_response)
-            recommendations = data.get("recommendations", [])
-        else:
-            analysis = full_response
-            recommendations = []
-
-        # Fallback if recommendations empty
-        if not recommendations:
-            recommendations = [{"title": "General HFT Upgrade", "description": "Run again or check Ollama response.", "cost": "N/A"}]
-
-        return analysis, recommendations, full_raw
+        return full_response, [], full_raw   # analysis, recommendations (empty), full_raw
 
     except Exception as e:
-        st.error(f"Ollama error: {e}")
-        return f"Error: {e}", [], full_raw
-
-def perform_upgrade_analysis(focus_keys: list[str], budget: float | None = None):
-    """Upgrade analysis - supports multiple categories"""
-    if "sections" not in st.session_state:
-        return None, [], "", ""
-
-    all_sections = st.session_state.sections
-
-    focused_sections = {}
-    focus_names = []
-    for key in focus_keys:
-        if key in ("General Overview", "All Sections"):
-            focused_sections.update(all_sections)
-            focus_names.append("General Overview")
-        else:
-            df = load_sections()
-            profile_titles = df[df["HFT_Profile"] == key]["Section_Title"].unique().tolist()
-            for t in profile_titles:
-                if t in all_sections:
-                    focused_sections[t] = all_sections[t]
-            focus_names.append(key)
-
-    focus_name_str = " + ".join(focus_names)
-
-    short_summary = build_system_profile(all_sections)
-    full_raw = build_full_raw_text(focused_sections)
-
-    dynamic_df = load_dynamic_df()
-    monitored = [sub for subs in focused_sections.values() for sub in subs]
-    snapshot = take_ai_snapshot(dynamic_df, monitored) if monitored else {}
-
-    budget_text = f"maximum budget of ${budget:,.0f}" if budget and budget > 0 else "no budget limit"
-
-    system_prompt = f"""You are an expert HFT/low-latency systems engineer.
-
-Full hardware profile:
-{short_summary}
-
-Focused data for: {focus_name_str}
-{full_raw}
-
-Current dynamic values:
-{str(snapshot) if snapshot else "None"}
-
-Analyze this system for high-frequency trading optimization.
-Provide a detailed analysis and at least 3 practical hardware/software upgrade recommendations.
-Consider {budget_text}.
-
-Respond in clear, readable markdown with sections for Analysis and Recommendations."""
-
-    try:
-        stream = ollama.chat(model="llama3.1:8b", messages=[{"role": "system", "content": system_prompt}], stream=True)
-        full_response = ""
-        placeholder = st.empty()
-        for chunk in stream:
-            content = chunk["message"].get("content", "")
-            full_response += content
-            placeholder.markdown(full_response + "▌")
-        placeholder.empty()
-
-        return full_response, [], full_raw, full_response
-
-    except Exception as e:
-        st.error(f"Ollama error: {e}")
-        return f"Error: {e}", [], full_raw, ""
+        error_msg = f"❌ Ollama error: {str(e)}\nMake sure `ollama serve` is running and the model is pulled."
+        st.error(error_msg)
+        return error_msg, [], full_raw

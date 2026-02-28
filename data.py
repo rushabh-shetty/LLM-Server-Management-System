@@ -6,10 +6,11 @@ import subprocess
 import streamlit as st
 
 def load_sections():
-    excel_file = "sections_config.xlsx"
+    excel_file = "sections_config_mac.xlsx"
+    #excel_file = "sections_config.xlsx"
     
-    if not os.path.isfile(excel_file):
-        raise FileNotFoundError(f"'{excel_file}' not found in current directory: {os.getcwd()}")
+    if not os.path.isfile(excel_file):    
+        return None
     
     df = pd.read_excel(excel_file, sheet_name="Sections")
     

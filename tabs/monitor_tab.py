@@ -11,45 +11,60 @@ from data import load_sections
 from ai import get_ai_threshold
 
 def render_monitor_tab():
+
     st.subheader("Live System Monitoring")
+
     st.markdown("""
     Tracks `dynamic_single` numeric metrics from your Excel config.  
     Select metrics to monitor/log/alert on (all enabled by default), and choose which to graph live.
     """)
 
-    # TODO: Load and prepare data
+    # TODO: Load data
 
-    ## Data
+    df = load_sections()
 
-    try:
-        df = load_sections()
-    except Exception as e:
-        st.error(f"Failed to load sections_config.xlsx: {e}")
-        return
-
-    dynamic_df = df[df["Type"] == "dynamic_single"].copy()
-    if dynamic_df.empty:
-        st.info("No `dynamic_single` metrics defined in Excel yet.")
-        return
-
-    # TODO: General Varialbles
-
-    ## Detect interface
+    ## Detect users interface 
 
     iface = subprocess.getoutput(
         "ip link | grep -oP '^[0-9]+: \\K[^:]+' | grep -v lo | head -n1"
     ).strip()
     if not iface:
         iface = "unknown"
+    
+    ## Prepare dybamic_single entries
 
-    ## Prepare thresholds/units
+    if df is None:
+        dynamic_df = pd.DataFrame()
+    else:
+        dynamic_df = df[df["Type"] == "dynamic_single"].copy()
+        dynamic_df["command"] = dynamic_df["Command"].str.replace("{iface}", iface)
+        dynamic_df["min_thresh"] = pd.to_numeric(dynamic_df.get("Threshold_Min", pd.Series([None]*len(dynamic_df))), errors="coerce")
+        dynamic_df["max_thresh"] = pd.to_numeric(dynamic_df.get("Threshold_Max", pd.Series([None]*len(dynamic_df))), errors="coerce")
+        dynamic_df["unit"] = dynamic_df.get("Unit", "").fillna("")
 
-    dynamic_df["command"] = dynamic_df["Command"].str.replace("{iface}", iface)
-    dynamic_df["min_thresh"] = pd.to_numeric(dynamic_df.get("Threshold_Min", pd.Series([None]*len(dynamic_df))), errors="coerce")
-    dynamic_df["max_thresh"] = pd.to_numeric(dynamic_df.get("Threshold_Max", pd.Series([None]*len(dynamic_df))), errors="coerce")
-    dynamic_df["unit"] = dynamic_df.get("Unit", "").fillna("")
+    # TODO: Prerequisite
 
-    ## Session state
+    if not os.path.isfile("sections_config.xlsx") or dynamic_df.empty:
+
+        c1, c2 = st.columns(2)
+    
+        with c1:
+            if os.path.isfile("sections_config.xlsx"):
+                st.success("✅ sections_config.xlsx")
+            else:
+                st.error("⚠️ sections_config.xlsx missing")
+    
+        with c2:
+            if not dynamic_df.empty:
+                st.success("✅ dynamic_single ready")
+            else:
+                st.error("⚠️ No `dynamic_single` metrics defined in Excel yet.")
+        
+        st.info("Fix the issues above, then come back.")
+    
+        return
+
+    # TODO: Session state
 
     if "monitoring_running" not in st.session_state:
         st.session_state.monitoring_running = False
@@ -64,47 +79,51 @@ def render_monitor_tab():
 
     # TODO: Metrics to Monitor
 
-    with st.expander("**Metrics to Monitor** (run, log, alert — all enabled by default)", expanded=True):
-        
-        col_sel1, col_sel2 = st.columns(2)
-        
-        with col_sel1:
-            if st.button("Select All", key="select_all_monitor"):
-                st.session_state.monitored_metrics = list(dynamic_df["Subsection_Title"])
-                for subtitle in dynamic_df["Subsection_Title"]:
-                    st.session_state[f"monitor_{subtitle}"] = True
-        
-        with col_sel2:
-            if st.button("Deselect All", key="deselect_all_monitor"):
-                st.session_state.monitored_metrics = []
-                for subtitle in dynamic_df["Subsection_Title"]:
-                    st.session_state[f"monitor_{subtitle}"] = False
+    st.subheader("**Metrics to Monitor**")
 
-        groups = dynamic_df.groupby("Section_Title")
+    ## Select buttons
         
-        monitored = {}
+    col_sel1, col_sel2, col3 = st.columns([1,1,4])
         
-        for section, group in groups:
-            with st.expander(f"**{section}** ({len(group)} metrics)", expanded=True):
-                for _, row in group.iterrows():
-                    subtitle = row["Subsection_Title"]
-                    unit = row["unit"]
-                    min_t = row["min_thresh"]
-                    max_t = row["max_thresh"]
-                    min_str = f"{min_t}" if pd.notna(min_t) else "—"
-                    max_str = f"{max_t}" if pd.notna(max_t) else "—"
-                    thresh_display = f"Min: {min_str} | Max: {max_str}"
-                    if unit:
-                        thresh_display += f" ({unit})"
+    with col_sel1:
+        if st.button("Select All", use_container_width=True, key="select_all_monitor"):
+            st.session_state.monitored_metrics = list(dynamic_df["Subsection_Title"])
+            for subtitle in dynamic_df["Subsection_Title"]:
+                st.session_state[f"monitor_{subtitle}"] = True
+        
+    with col_sel2:
+        if st.button("Deselect All", use_container_width=True, key="deselect_all_monitor"):
+            st.session_state.monitored_metrics = []
+            for subtitle in dynamic_df["Subsection_Title"]:
+                st.session_state[f"monitor_{subtitle}"] = False
 
-                    default = subtitle in st.session_state.monitored_metrics
-                    monitored[subtitle] = st.checkbox(
-                        f"**{subtitle}** — {thresh_display}",
-                        value=default,
-                        key=f"monitor_{subtitle}"
-                    )
+    ## Display metrics
 
-        st.session_state.monitored_metrics = [k for k, v in monitored.items() if v]
+    groups = dynamic_df.groupby("Section_Title")
+        
+    monitored = {}
+        
+    for section, group in groups:
+        with st.expander(f"**{section}** ({len(group)} metrics)", expanded=True):
+            for _, row in group.iterrows():
+                subtitle = row["Subsection_Title"]
+                unit = row["unit"]
+                min_t = row["min_thresh"]
+                max_t = row["max_thresh"]
+                min_str = f"{min_t}" if pd.notna(min_t) else "—"
+                max_str = f"{max_t}" if pd.notna(max_t) else "—"
+                thresh_display = f"Min: {min_str} | Max: {max_str}"
+                if unit:
+                    thresh_display += f" ({unit})"
+
+                default = subtitle in st.session_state.monitored_metrics
+                monitored[subtitle] = st.checkbox(
+                    f"**{subtitle}** — {thresh_display}",
+                    value=default,
+                    key=f"monitor_{subtitle}"
+                )
+
+    st.session_state.monitored_metrics = [k for k, v in monitored.items() if v]
 
     ## TODO: AI Thershold Assistant
     

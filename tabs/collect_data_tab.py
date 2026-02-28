@@ -4,6 +4,7 @@ import time
 from collections import OrderedDict
 import io
 from data import load_sections
+import os
 
 def render_collect_data_tab():
 
@@ -11,13 +12,29 @@ def render_collect_data_tab():
 
     st.markdown("Click the button to collect and view system info.")
 
-    # Initialize session state to persist results across reruns
+    # TODO: Prerequisite
+
+    st.info("Place `sections_config.xlsx` in the same folder as this script. Edit it to add/remove/reorder commands")
+
+    if not os.path.isfile("sections_config.xlsx"):
+
+        if os.path.isfile("sections_config.xlsx"):
+            st.success("✅ sections_config.xlsx")
+        else:
+            st.error("⚠️ sections_config.xlsx missing")
+    
+        return
+
+    # TODO: Variables to save in session state
+
     if 'full_report' not in st.session_state:
         st.session_state.full_report = None
     if 'summary_text' not in st.session_state:
         st.session_state.summary_text = None
     if 'has_content' not in st.session_state:
         st.session_state.has_content = False
+
+    # TODO: Collect Information
 
     if st.button("Collect System Information", type="primary"):
 
@@ -75,7 +92,6 @@ def render_collect_data_tab():
                         "status": "Pending",
                         "reason": ""
                                             }
-                st.success("✅ Configuration loaded from sections_config.xlsx")
                 
                 st.session_state.sections = sections
 
@@ -137,14 +153,13 @@ def render_collect_data_tab():
             st.session_state.summary_text = summary_text
             st.session_state.has_content = has_content
 
-    # Display results 
+    # TODO: Display results 
 
     if st.session_state.full_report:
-
-        st.success("✅ Collection complete!")
         
         if st.session_state.has_content:
             st.markdown(st.session_state.summary_text)
+        
         with st.expander("📄 View Detailed Report (raw output)", expanded=False):
             st.code(st.session_state.full_report, language=None)
         
@@ -153,6 +168,6 @@ def render_collect_data_tab():
             data=st.session_state.full_report,
             file_name="system_info.txt",
             mime="text/plain"
-                        )
+        )
 
-    st.info("Place `sections_config.xlsx` in the same folder as this script. Edit it to add/remove/reorder commands")
+    

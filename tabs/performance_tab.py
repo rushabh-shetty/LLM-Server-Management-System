@@ -12,12 +12,28 @@ def render_performance_tab():
 
     st.markdown("Choose profile → Preview context → Run → Select recommendations → Generate script.")
 
-    # Status
-    c1, c2 = st.columns(2)
-    with c1:
-        st.success("✅ sections_config.xlsx") if os.path.isfile("sections_config.xlsx") else st.error("❌ sections_config.xlsx missing")
-    with c2:
-        st.success("✅ System data ready") if "sections" in st.session_state else st.warning("Run Data tab first")
+    # TODO: Prerequisite
+
+    if not os.path.isfile("sections_config.xlsx") or "sections" not in st.session_state:
+
+        c1, c2 = st.columns(2)
+    
+        with c1:
+            if os.path.isfile("sections_config.xlsx"):
+                st.success("✅ sections_config.xlsx")
+            else:
+                st.error("⚠️ sections_config.xlsx missing")
+    
+        with c2:
+            if "sections" in st.session_state:
+                st.success("✅ System data ready")
+            else:
+                st.error("⚠️ Run **Data** tab first")
+        
+        st.info("Fix the issues above, then come back.")
+    
+        return
+
 
     profiles = get_available_hft_profiles()
     selected_profile = st.selectbox("Select HFT Profile", profiles, index=0)
