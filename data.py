@@ -5,6 +5,7 @@ import os
 import subprocess
 import streamlit as st
 
+@st.cache_data(ttl="10min", show_spinner=False)
 def load_sections():
     excel_file = "sections_config_mac.xlsx"
     #excel_file = "sections_config.xlsx"
@@ -83,6 +84,26 @@ def load_dynamic_df():
         st.error(f"Failed to load config: {e}")
         return pd.DataFrame()
 
+@st.cache_data(ttl="10min", show_spinner=False)
+def load_dynamic_df_2():
+
+    iface = get_default_interface()
+    df = load_sections()
+
+    dyn = df[df["Type"] == "dynamic_single"].copy()
+
+    dyn["command"]   = dyn["Command"].str.replace("{iface}", iface)
+    dyn["min_thresh"] = pd.to_numeric(
+        dyn.get("Threshold_Min", pd.Series([None] * len(dyn))),
+        errors="coerce"
+    )
+    dyn["max_thresh"] = pd.to_numeric(
+        dyn.get("Threshold_Max", pd.Series([None] * len(dyn))),
+        errors="coerce"
+    )
+    dyn["unit"] = dyn.get("Unit", "").fillna("")
+
+    return dyn
 
 def build_system_profile(sections):
     """Clean, short hardware fingerprint"""
@@ -133,3 +154,13 @@ def build_full_raw_text(sections):
             out = data.get("output", "").strip() or "(no output yet)"
             text += f"--- {subtitle} ---\n{cmd}\n{out}\n\n"
     return text.strip()
+
+def get_default_interface():
+    """Get the first non-loopback network interface."""
+    try:
+        output = subprocess.getoutput(
+            "ip link | grep -oP '^[0-9]+: \K[^:]+' | grep -v lo | head -n1"
+        ).strip()
+        return output if output else "unknown"
+    except Exception:
+        return "unknown"

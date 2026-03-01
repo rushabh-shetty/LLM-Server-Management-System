@@ -7,7 +7,7 @@ import os
 import pandas as pd
 from datetime import datetime, timedelta
 
-from data import load_sections
+from data import load_sections, get_default_interface, load_dynamic_df_2
 from ai import get_ai_threshold
 
 def render_monitor_tab():
@@ -22,25 +22,13 @@ def render_monitor_tab():
     # TODO: Load data
 
     df = load_sections()
-
-    ## Detect users interface 
-
-    iface = subprocess.getoutput(
-        "ip link | grep -oP '^[0-9]+: \\K[^:]+' | grep -v lo | head -n1"
-    ).strip()
-    if not iface:
-        iface = "unknown"
     
-    ## Prepare dybamic_single entries
+    ## Prepare dynamic_single entries
 
     if df is None:
         dynamic_df = pd.DataFrame()
     else:
-        dynamic_df = df[df["Type"] == "dynamic_single"].copy()
-        dynamic_df["command"] = dynamic_df["Command"].str.replace("{iface}", iface)
-        dynamic_df["min_thresh"] = pd.to_numeric(dynamic_df.get("Threshold_Min", pd.Series([None]*len(dynamic_df))), errors="coerce")
-        dynamic_df["max_thresh"] = pd.to_numeric(dynamic_df.get("Threshold_Max", pd.Series([None]*len(dynamic_df))), errors="coerce")
-        dynamic_df["unit"] = dynamic_df.get("Unit", "").fillna("")
+        dynamic_df = load_dynamic_df_2()
 
     # TODO: Prerequisite
 
@@ -86,13 +74,13 @@ def render_monitor_tab():
     col_sel1, col_sel2, col3 = st.columns([1,1,4])
         
     with col_sel1:
-        if st.button("Select All", use_container_width=True, key="select_all_monitor"):
+        if st.button("Select All", use_container_width=True, key="select_all_monitor", type="primary"):
             st.session_state.monitored_metrics = list(dynamic_df["Subsection_Title"])
             for subtitle in dynamic_df["Subsection_Title"]:
                 st.session_state[f"monitor_{subtitle}"] = True
         
     with col_sel2:
-        if st.button("Deselect All", use_container_width=True, key="deselect_all_monitor"):
+        if st.button("Deselect All", use_container_width=True, key="deselect_all_monitor", type="primary"):
             st.session_state.monitored_metrics = []
             for subtitle in dynamic_df["Subsection_Title"]:
                 st.session_state[f"monitor_{subtitle}"] = False
@@ -125,31 +113,47 @@ def render_monitor_tab():
 
     st.session_state.monitored_metrics = [k for k, v in monitored.items() if v]
 
+    ### AUTO-CHECK LIVE GRAPHS BY DEFAULT + CLEANUP
+    if 'displayed_metrics' not in st.session_state:
+        st.session_state.displayed_metrics = []
+
+    ##### Remove any graphs that are no longer monitored
+    st.session_state.displayed_metrics = [
+        m for m in st.session_state.displayed_metrics 
+        if m in st.session_state.monitored_metrics
+    ]
+
+    ##### Auto-add newly selected metrics (and force their checkboxes to be checked)
+    for subtitle in st.session_state.monitored_metrics:
+        if subtitle not in st.session_state.displayed_metrics:
+            st.session_state.displayed_metrics.append(subtitle)
+            st.session_state[f"display_{subtitle}"] = True
+
     ## TODO: AI Thershold Assistant
     
     with st.expander("AI Assistant for Threshold Recommendations", expanded=False):
 
         get_ai_threshold()
 
-    # TODO: Monitoring Controls
+    # TODO: Live Monitoring
 
-    st.markdown("### Monitoring Controls")
+    st.markdown("### Live Monitoring")
 
     ## Live Graph Display Selection
 
     if st.session_state.monitored_metrics:
 
-        with st.expander("**Live Graph Display** (choose which monitored metrics to visualize live)", expanded=True):
+        with st.expander("**Live Graph Display** (choose which monitored metrics to visualize live)", expanded = False):
 
-            col_disp1, col_disp2 = st.columns(2)
+            col_disp1, col_disp2, col_disp3 = st.columns([1, 1, 4])
 
             with col_disp1:
-                if st.button("Show All Monitored", key="show_all_graphs"):
+                if st.button("Show All Monitored", use_container_width=True, key="show_all_graphs", type = "primary"):
                     st.session_state.displayed_metrics = st.session_state.monitored_metrics[:]
                     for subtitle in st.session_state.monitored_metrics:
                         st.session_state[f"display_{subtitle}"] = True
             with col_disp2:
-                if st.button("Hide All Graphs", key="hide_all_graphs"):
+                if st.button("Hide All Graphs", use_container_width=True, key="hide_all_graphs", type = "primary"):
                     st.session_state.displayed_metrics = []
                     for subtitle in st.session_state.monitored_metrics:
                         st.session_state[f"display_{subtitle}"] = False
@@ -165,9 +169,9 @@ def render_monitor_tab():
 
             st.session_state.displayed_metrics = [k for k, v in displayed.items() if v]
 
-    ## Filter
+    ## Interval
 
-    interval = st.selectbox("Update interval", [10, 30, 60, 300], index=2, format_func=lambda x: f"{x} seconds")
+    interval = st.selectbox("Update interval", [10, 30, 60, 300], index = 0 , format_func = lambda x: f"{x} seconds")
 
     col_ctrl1, col_ctrl2 = st.columns([1, 1])
 
@@ -175,12 +179,14 @@ def render_monitor_tab():
         start_label = "Start Monitoring" if not st.session_state.monitoring_running else "Pause Monitoring"
         if st.button(start_label, type="primary", width="stretch"):
             st.session_state.monitoring_running = not st.session_state.monitoring_running
+            st.rerun()
     
     with col_ctrl2:
         if st.button("Stop & Clear Live Graphs", type="secondary", width="stretch"):
             st.session_state.monitoring_running = False
             st.session_state.monitor_history = {}
             st.session_state.active_alerts = {}
+            st.rerun()
     
     if not st.session_state.monitored_metrics:
         st.warning("⚠️ Select at least one metric in 'Metrics to Monitor' to start.")

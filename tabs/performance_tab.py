@@ -38,58 +38,11 @@ def render_performance_tab():
     profiles = get_available_hft_profiles()
     selected_profile = st.selectbox("Select HFT Profile", profiles, index=0)
 
-    # TODO: AI context
-    with st.expander("Preview what will be sent to AI", expanded=True):
-        if "sections" not in st.session_state:
-            st.info("Run Data tab first")
-        else:
-            all_sections = st.session_state.sections
-            if selected_profile == "All Sections":
-                preview_sections = all_sections
-            else:
-                df = load_sections()
-                profile_titles = df[df["HFT_Profile"] == selected_profile]["Section_Title"].unique()
-                preview_sections = {k: v for k, v in all_sections.items() if k in profile_titles}
+    # TODO: Call AI
 
-            st.markdown("**Hardware Summary**")
-            st.code(build_system_profile(preview_sections) if preview_sections else "—")
+    perform_hft_analysis(selected_profile)
 
-            st.markdown("**Full sections for this profile**")
-            preview_text = ""
-            for title, subs in preview_sections.items():
-                preview_text += f"\n=== {title} ===\n"
-                for subtitle, data in subs.items():
-                    cmd = data.get("command", "")
-                    out = data.get("output", "").strip() or "(no output yet)"
-                    preview_text += f"--- {subtitle} ---\n{cmd}\n{out}\n"
-            st.code(preview_text.strip() or "No sections", language=None)
-
-            dynamic_df = load_dynamic_df()
-            monitored = [sub for subs in preview_sections.values() for sub in subs]
-            snapshot = take_ai_snapshot(dynamic_df, monitored) if monitored else {}
-            if snapshot:
-                st.markdown("**Dynamic values**")
-                st.dataframe(pd.DataFrame(list(snapshot.items()), columns=["Metric", "Value"]), 
-                             width='stretch', hide_index=True)
-
-    # TODO: Run button
-
-    if st.button("🚀 Run Performance Analysis", type="primary", width='stretch'):
-        with st.status("Running analysis...", expanded=True) as status:
-            status.update(label="Asking Ollama...", state="running")
-            analysis_md, recommendations, context_for_ui = perform_hft_analysis(selected_profile)
-            status.update(label="✅ Done!", state="complete")
-
-        st.session_state.last_analysis = {
-            "profile": selected_profile,
-            "analysis_md": analysis_md,
-            "recommendations": recommendations,
-            "context_for_ui": context_for_ui,
-            "timestamp": datetime.now().strftime("%Y-%m-%d %H:%M")
-        }
-        st.rerun()
-
-    # TODO: Results
+    # TODO: Formatting Results
 
     if "last_analysis" in st.session_state:
         last = st.session_state.last_analysis
@@ -133,18 +86,6 @@ def render_performance_tab():
         with col3:
             if st.button("📥 Generate files", type="primary", width='stretch', key="generate_files_perf"):
                 generate_tuning_files(last)
-
-        # Post-run context
-        with st.expander("📋 What was sent to Ollama (last run)", expanded=False):
-            ctx = last["context_for_ui"]
-            st.markdown("**Hardware Summary**")
-            st.code(ctx["short_summary"])
-            st.markdown("**Full sections for this profile**")
-            st.code(ctx["full_profile_data"], language=None)
-            if ctx.get("dynamic_snapshot"):
-                st.markdown("**Dynamic values**")
-                st.dataframe(pd.DataFrame(list(ctx["dynamic_snapshot"].items()), columns=["Metric", "Value"]), 
-                             width='stretch', hide_index=True)
 
 # TODO: Tunning file
 

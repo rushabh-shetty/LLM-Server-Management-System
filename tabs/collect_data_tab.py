@@ -3,7 +3,7 @@ import subprocess
 import time
 from collections import OrderedDict
 import io
-from data import load_sections
+from data import load_sections, get_default_interface
 import os
 
 def render_collect_data_tab():
@@ -47,9 +47,7 @@ def render_collect_data_tab():
 
             # Detect users interface , later used in each command
 
-            iface = subprocess.getoutput(
-                "ip link | grep -oP '^[0-9]+: \\K[^:]+' | grep -v lo | head -n1"
-                            ).strip()
+            iface = get_default_interface()
             if not iface:
                 iface = "unknown"
             output.write("Warning: No network interface detected (excluding lo).\n\n")
