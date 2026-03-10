@@ -1,5 +1,3 @@
-# data.py
-
 import pandas as pd
 import os
 import subprocess
@@ -67,25 +65,8 @@ def get_sections_for_profile(profile: str):
     
     return sections
 
-def load_dynamic_df():
-    """Load and prepare dynamic_single metrics"""
-    try:
-        df = load_sections()
-        dynamic_df = df[df["Type"] == "dynamic_single"].copy()
-        dynamic_df["min_thresh"] = pd.to_numeric(
-            dynamic_df.get("Threshold_Min", pd.Series([None] * len(dynamic_df))), errors="coerce"
-        )
-        dynamic_df["max_thresh"] = pd.to_numeric(
-            dynamic_df.get("Threshold_Max", pd.Series([None] * len(dynamic_df))), errors="coerce"
-        )
-        dynamic_df["unit"] = dynamic_df.get("Unit", "").fillna("")
-        return dynamic_df
-    except Exception as e:
-        st.error(f"Failed to load config: {e}")
-        return pd.DataFrame()
-
 @st.cache_data(ttl="10min", show_spinner=False)
-def load_dynamic_df_2():
+def load_dynamic_df():
 
     iface = get_default_interface()
     df = load_sections()
@@ -120,19 +101,14 @@ def build_system_profile(sections):
                     profile.append(f"- {subtitle}: {clean}")
     return "\n".join(profile)
 
-
 def take_ai_snapshot(dynamic_df, monitored_metrics):
     """Run current values for monitored metrics"""
     snapshot = {}
-    iface = subprocess.getoutput(
-        "ip link | grep -oP '^[0-9]+: \\K[^:]+' | grep -v lo | head -n1"
-    ).strip() or "unknown"
-
     for subtitle in monitored_metrics:
         row = dynamic_df[dynamic_df["Subsection_Title"] == subtitle]
         if not row.empty:
-            cmd_template = row.iloc[0]["Command"]
-            cmd = cmd_template.replace("{iface}", iface)
+            # Use the pre-replaced command from load_dynamic_df 
+            cmd = row.iloc[0].get("command")
             try:
                 output = subprocess.check_output(cmd, shell=True, text=True, stderr=subprocess.STDOUT).strip()
                 try:
@@ -143,6 +119,7 @@ def take_ai_snapshot(dynamic_df, monitored_metrics):
             except Exception:
                 snapshot[subtitle] = "error"
     return snapshot
+
 
 def build_full_raw_text(sections):
     """Reconstruct exact format like original parse_system_info()"""
@@ -164,3 +141,34 @@ def get_default_interface():
         return output if output else "unknown"
     except Exception:
         return "unknown"
+    
+def generate_selected_report(last):
+    selected = [r for r in last.get("recommendations", []) if r.get("id") in st.session_state.get("selected_upgrade_recs", [])]
+    if not selected:
+        selected = last.get("recommendations", [])  # fallback: show everything if nothing selected
+
+    total_cost = sum(r.get("estimated_cost", 0) for r in selected)
+    budget_display = f"${last.get('budget', 0):,}" if last.get("budget") else "unlimited"
+
+    md = f"# HFT Upgrade Report — {', '.join(last.get('focus_display', []))}\n\n"
+    md += f"**Generated:** {last['timestamp']}\n"
+    md += f"**Budget limit:** {budget_display}\n"
+    md += f"**Selected total:** ${total_cost:,}\n\n"
+    md += last.get("analysis_md", "") + "\n\n## Selected Upgrades\n\n"
+
+    for r in selected:
+        md += f"### {r.get('title')}\n"
+        md += f"**Replace:** {r.get('current_part', '—')}\n"
+        md += f"**With:** {r.get('recommended_model')} — {r.get('key_specs', '—')}\n"
+        md += f"**Cost:** ${r.get('estimated_cost', 0):,}\n"
+        md += f"**Impact:** {r.get('impact', '—')}\n"
+        md += f"{r.get('description', '')}\n\n"
+
+    st.download_button(
+        "⬇️ Download upgrade_report.md",
+        md,
+        file_name="hft_upgrade_report.md",
+        mime="text/markdown",
+        use_container_width=True
+    )
+    st.success("✅ Report generated with your selected upgrades!")

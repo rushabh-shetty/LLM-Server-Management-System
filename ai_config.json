@@ -1,0 +1,8 @@
+{
+  "model": "ollama/llama3.1:8b",
+  "api_key": null,
+  "base_url": null,
+  "temperature": 0.7,
+  "top_p": 0.9,
+  "max_tokens": 10000
+}

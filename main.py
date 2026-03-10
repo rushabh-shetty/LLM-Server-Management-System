@@ -5,6 +5,13 @@ from tabs.monitor_tab import render_monitor_tab
 from tabs.history_tab import render_history_tab
 from tabs.performance_tab import render_performance_tab
 from tabs.upgrade_tab import render_upgrade_tab
+from tabs.ai_settings_tab import render_ai_settings_tab 
+from ai_config import load_ai_config                  
+
+# TODO: Read AI config
+
+if "ai_config" not in st.session_state:
+    st.session_state.ai_config = load_ai_config()
 
 # TODO: Page Config
 
@@ -16,7 +23,7 @@ st.title("LLM Management System", text_alignment="center")
 
 # TODO: Tabs
 
-tab_data, tab_monitor, tab_history, tab_performance, tab_upgrade = st.tabs(["Data", "Monitor Data", "Trends", "Performance", "Upgrade"])
+tab_data, tab_monitor, tab_history, tab_performance, tab_upgrade, tab_ai = st.tabs(["Data", "Monitor Data", "Trends", "Performance", "Upgrade", "AI Settings"])
 
 with tab_data:
 
@@ -37,3 +44,7 @@ with tab_performance:
 with tab_upgrade:
 
     render_upgrade_tab()
+
+with tab_ai:        
+
+    render_ai_settings_tab()

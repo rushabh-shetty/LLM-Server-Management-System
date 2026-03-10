@@ -4,6 +4,7 @@ import pandas as pd
 import os
 from datetime import timedelta
 
+@st.fragment
 def render_history_tab():
     st.subheader("Historical Data Analysis")
     st.markdown("""

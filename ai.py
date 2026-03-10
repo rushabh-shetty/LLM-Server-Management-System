@@ -6,7 +6,7 @@ import re
 from datetime import datetime
 from litellm import completion
 
-from data import load_sections, get_sections_for_profile, load_dynamic_df, build_system_profile, take_ai_snapshot, build_full_raw_text
+from data import load_sections, load_dynamic_df, build_system_profile, take_ai_snapshot, build_full_raw_text
 
 # TODO: Generic AI calls
 
@@ -100,19 +100,19 @@ def render_ai_chat(
                 st.session_state[messages_key].append({"role": "assistant", "content": error_msg})
 
 def render_structured_ai_task(
-    context: dict,
-    system_prompt: str,
-    result_key: str = "last_analysis",
-    task_name: str = "Performance Analysis",
-    model: str = "ollama/llama3.1:8b",      # ← FIXED: now matches your chat + litellm requirement
-    temperature: float = 0.1,
-    top_p: float = 0.9,
-    max_tokens: int = 8000,
-    api_key: str = None,
-    api_base: str = None,                    # e.g. "http://localhost:11434" if needed
-    force_json_user_message: str = "Generate the JSON analysis and recommendations NOW. Output ONLY the JSON object."
+    context,
+    system_prompt,
+    result_key = "last_analysis",
+    task_name = "Performance Analysis",
+    model = "ollama/llama3.1:8b",  
+    temperature = 0.1,
+    top_p = 0.9,
+    max_tokens = 8000,
+    api_key = None,
+    api_base = None,            
+    force_json_user_message = "Generate the JSON analysis and recommendations NOW. Output ONLY the JSON object."
 ):
-    """Reusable one-shot structured AI task using litellm (same style as render_ai_chat)"""
+
     with st.status(f"Running {task_name}...", expanded=True) as status:
         status.update(label=f"Asking {model}...", state="running")
 
@@ -144,7 +144,8 @@ def render_structured_ai_task(
             placeholder.empty()
             status.update(label="✅ Response received — parsing...", state="complete")
 
-            # === Robust JSON parsing (exactly your original logic) ===
+            # TODO: JSON Parsing
+
             full_response = full_response.strip()
             try:
                 data = json.loads(full_response)
@@ -174,9 +175,10 @@ def render_structured_ai_task(
                 except:
                     pass
 
-            # Store result — backward compatible with your existing display code
+            # TODO: Store result 
+
             st.session_state[result_key] = {
-                "profile": context.get("selected_profile", task_name),   # ← FIXED for KeyError
+                "profile": context.get("selected_profile", task_name), 
                 "task_name": task_name,
                 "analysis_md": analysis,
                 "recommendations": recs,
@@ -255,7 +257,7 @@ def get_ai_threshold():
 
     # TODO: Expander to Show context sent to AI
     
-    with st.expander("View Full Context Being Sent to AI", expanded=False):
+    with st.expander("Preview AI context", expanded=False):
         st.markdown("**Hardware Profile**")
         st.markdown(system_profile)
         st.markdown("**Monitored Metrics + Commands + Current Values**")
@@ -291,12 +293,20 @@ def get_ai_threshold():
 
     # TODO: Call chat
 
+    cfg = st.session_state.ai_config
+    
     render_ai_chat(
-        system_prompt = system_prompt,     
-        welcome_message = welcome,
-        input_placeholder = placeholder,
-        messages_key="threshold_chat_messages", 
-        chat_input_key="threshold_chat_input",    
+        system_prompt=system_prompt,
+        welcome_message=welcome,
+        input_placeholder=placeholder,
+        model=cfg["model"],
+        temperature=cfg["temperature"],
+        top_p=cfg["top_p"],
+        max_tokens=cfg["max_tokens"],
+        api_key=cfg.get("api_key"),
+        base_url=cfg.get("base_url"),
+        messages_key="threshold_chat_messages",
+        chat_input_key="threshold_chat_input",
         clear_key="threshold_clear_chat"
     )
 
@@ -307,14 +317,15 @@ def perform_hft_analysis(selected_profile):
     if "sections" not in st.session_state:
         st.info("Run Data tab first")
         return
+    
+    # TODO: Context
 
-    # === 1. BUILD CONTEXT ONCE ===
     all_sections = st.session_state.sections
 
-    # Stable full hardware summary (never changes when switching profiles)
     full_hardware_summary = build_system_profile(all_sections)
 
-    # Profile-specific sections (real collected data, not the empty template)
+    ## Profile-specific sections
+
     if selected_profile == "All Sections":
         profile_sections = all_sections
     else:
@@ -322,24 +333,25 @@ def perform_hft_analysis(selected_profile):
         profile_titles = df[df["HFT_Profile"] == selected_profile]["Section_Title"].unique().tolist()
         profile_sections = {k: v for k, v in all_sections.items() if k in profile_titles}
 
-    # Re-use existing helper (much cleaner than the old loop)
     full_profile_data = build_full_raw_text(profile_sections)
 
-    # Dynamic snapshot (profile-specific)
+    ## Dynamic snapshot
     dynamic_df = load_dynamic_df()
     monitored = [subtitle for subs in profile_sections.values() for subtitle in subs.keys()]
     dynamic_snapshot = take_ai_snapshot(dynamic_df, monitored) if monitored else {}
 
     context = {
-        "short_summary": full_hardware_summary,      # kept old key for your existing display code
+        "short_summary": full_hardware_summary,     
         "full_profile_data": full_profile_data,
         "dynamic_snapshot": dynamic_snapshot,
         "selected_profile": selected_profile,
-        "full_hardware_summary": full_hardware_summary   # extra name for future tabs
+        "full_hardware_summary": full_hardware_summary 
     }
 
-    # === 2. PREVIEW ===
-    with st.expander("Preview what will be sent to AI", expanded = False):
+    # TODO: Contex Preview
+
+    with st.expander("Preview AI context", expanded = False):
+
         st.markdown("**Full Hardware Summary** (stable base context — always sent)")
         if full_hardware_summary and full_hardware_summary.strip():
             st.markdown(full_hardware_summary)
@@ -357,58 +369,79 @@ def perform_hft_analysis(selected_profile):
                 width='stretch', hide_index=True
             )
 
-    # === 3. RUN BUTTON + AI CALL ===
+    # TODO: Run Button + AI Call
+
     if st.button("🚀 Run Performance Analysis", type="primary", width='stretch'):
-        system_prompt = f"""You are an expert HFT/low-latency Linux performance engineer.
 
-FULL HARDWARE SUMMARY (always included — use this as base context):
-{full_hardware_summary}
+        system_prompt = f"""
+        
+        You are an expert HFT/low-latency Linux performance engineer.
 
-DETAILED DATA FOR THE SELECTED PROFILE ({selected_profile}):
-{full_profile_data}
+        FULL HARDWARE SUMMARY (always included — use this as base context):
 
-CURRENT DYNAMIC VALUES (profile-specific):
-{json.dumps(dynamic_snapshot, indent=2) if dynamic_snapshot else "None"}
+        {full_hardware_summary}
 
-You MUST analyze this system and output **EXACTLY** a valid JSON object.
-Do not add any explanation, markdown, or extra text before or after the JSON.
-Use this exact structure:
-{{
-  "analysis": "=== Performance Analysis ===\\n\\nYour full markdown report here with latency/throughput details...",
-  "recommendations": [
-    {{
-      "id": "rec-001",
-      "title": "Short title",
-      "description": "1-2 sentence explanation",
-      "impact": "15-30% lower latency",
-      "commands": ["sudo command1", "sudo command2"],
-      "risk": "low",
-      "why_hft": "One sentence why this helps HFT"
-    }}
-  ]
-}}"""
+        DETAILED DATA FOR THE SELECTED PROFILE ({selected_profile}):
+
+        {full_profile_data}
+
+        CURRENT DYNAMIC VALUES (profile-specific):
+        {json.dumps(dynamic_snapshot, indent=2) if dynamic_snapshot else "None"}
+
+        You MUST analyze this system and output **EXACTLY** a valid JSON object.
+        Do not add any explanation, markdown, or extra text before or after the JSON.
+        Use this exact structure:
+        
+        {{
+        "analysis": "=== Performance Analysis ===\\n\\nYour full markdown report here with latency/throughput details...",
+        "recommendations": [
+            {{
+                "id": "rec-001",
+                "title": "Short title",
+                "description": "1-2 sentence explanation",
+                "impact": "15-30% lower latency",
+                "commands": ["sudo command1", "sudo command2"],
+                "risk": "low",
+                "why_hft": "One sentence why this helps HFT"
+            }}
+        ]
+        }}
+
+        Reply with ONLY the JSON. Do not add any other text.
+        
+        """
+        cfg = st.session_state.ai_config
 
         render_structured_ai_task(
             context=context,
             system_prompt=system_prompt,
             result_key="last_analysis",
             task_name=f"HFT Analysis — {selected_profile}",
+            model=cfg["model"],
+            temperature=0.0,    # foricng 0.0 for perfect JSON (upgrade is special)
+            top_p=cfg["top_p"],
+            max_tokens=cfg["max_tokens"],
+            api_key=cfg.get("api_key"),
+            api_base=cfg.get("base_url")
         )
 
 #TODO: Upgrade AI
 
-def perform_upgrade_analysis(focus_keys: list[str], budget: float | None = None):
+def perform_upgrade_analysis(focus_display: list, budget: float | None = None):
 
-    if "sections" not in st.session_state:
-        return "❌ No system data collected yet. Run the Data tab first.", [], ""
+    # TODO: Sections to include
+
+    if not focus_display or "sections" not in st.session_state:
+        return
+
+    focus_keys = ["All Sections" if x == "General Overview" else x for x in focus_display]
 
     all_sections = st.session_state.sections
-
-    # Build focused sections (supports multiple categories)
     focused_sections = {}
     focus_names = []
+
     for key in focus_keys:
-        if key in ("General Overview", "All Sections"):
+        if key in ("All Sections", "General Overview"):
             focused_sections.update(all_sections)
             focus_names.append("General Overview")
         else:
@@ -419,83 +452,101 @@ def perform_upgrade_analysis(focus_keys: list[str], budget: float | None = None)
                     focused_sections[t] = all_sections[t]
             focus_names.append(key)
 
-    focus_name_str = " + ".join(focus_names)
+    focus_name_str = " + ".join(set(focus_names))
+
+    # TODO: System Context
 
     short_summary = build_system_profile(all_sections)
-    full_raw = build_full_raw_text(focused_sections)
-
+    full_profile_data = build_full_raw_text(focused_sections)
     dynamic_df = load_dynamic_df()
     monitored = [sub for subs in focused_sections.values() for sub in subs]
-    snapshot = take_ai_snapshot(dynamic_df, monitored) if monitored else {}
+    dynamic_snapshot = take_ai_snapshot(dynamic_df, monitored) if monitored else {}
 
-    budget_text = f"maximum budget of ${budget:,.0f}" if budget and budget > 0 else "no budget limit"
+    context = {
+        "short_summary": short_summary,
+        "full_profile_data": full_profile_data,
+        "dynamic_snapshot": dynamic_snapshot,
+        "selected_profile": focus_name_str,
+        "focus_display": focus_display,
+        "budget": budget
+    }
 
-    # === STRONG SYSTEM PROMPT ===
-    system_prompt = f"""You are an expert HFT/low-latency systems engineer with 15+ years optimizing trading infrastructure.
+    # TODO: Preview Contex 
 
-Full hardware profile:
-{short_summary}
+    with st.expander("Preview AI context", expanded=False):
+        st.markdown("**Hardware Summary**")
+        st.code(short_summary or "—", language=None)
+        st.markdown(f"**Focus:** {focus_name_str}")
+        st.markdown("**Detailed sections**")
+        st.code(full_profile_data.strip() or "No data", language=None)
+        if dynamic_snapshot:
+            st.markdown("**Live metrics snapshot**")
+            st.dataframe(pd.DataFrame(list(dynamic_snapshot.items()), columns=["Metric", "Value"]),
+                         use_container_width=True, hide_index=True)
+            
+    # TODO: Execute AI call
 
-Focused data for: {focus_name_str}
-{full_raw}
+    if st.button("🚀 Run Upgrade Analysis", type="primary", use_container_width=True):
+        budget_text = f"${budget:,.0f} maximum" if budget else "no budget constraint"
+        budget_level = "high" if budget and budget >= 5000 else "medium" if budget else "unlimited"
 
-Current dynamic values:
-{str(snapshot) if snapshot else "None"}
+        system_prompt = f"""
+        You are a senior HFT hardware engineer (2025 era).
+        You specialize in ultra-low-latency trading infrastructure upgrades.
 
-Analyze this system for high-frequency trading optimization.
-Provide a detailed analysis and **at least 3 practical hardware/software upgrade recommendations**.
-Consider {budget_text}.
+        FULL CURRENT SYSTEM:
+        {short_summary}
 
-Respond in clear, professional markdown with these exact sections:
+        FOCUSED AREAS TO UPGRADE:
+        {focus_name_str}
+        {full_profile_data}
 
-### Analysis
-(detailed paragraph form, mention latency/throughput gains, bottlenecks, etc.)
+        LIVE VALUES:
+        {json.dumps(dynamic_snapshot, indent=2) if dynamic_snapshot else "None"}
 
-### Recommendations
-- **Title 1**  
-  Description...  
-  Estimated cost: $X  
-  Expected HFT impact: ...
+        Budget: {budget_text} ({budget_level}-level budget)
 
-- **Title 2**  
-  ...
+        YOU MUST SCALE RECOMMENDATIONS TO THE BUDGET:
+        - If budget is $5,000+, always recommend premium/high-end 2025 parts that deliver maximum HFT performance (enterprise SSDs, high-capacity low-latency RAM, latest-gen CPUs, BlueField-3 DPUs, PCIe Gen5 cards, etc.).
+        - Never default to cheap consumer parts when the user has a large budget — use the money to buy the best realistic upgrade possible.
 
-Be specific, realistic, and conservative. Never say "it depends" — give concrete advice."""
+        COMPATIBILITY RULE (MANDATORY):
+        Every single recommendation MUST be 100% compatible with the current motherboard chipset, CPU socket, PCIe version/slots, RAM type/speed, and form factors shown in the full hardware summary. If something would require a motherboard swap, say so explicitly and justify it.
 
-    # === MESSAGES THAT GUARANTEE OLLAMA ANSWERS ===
-    messages = [
-        {"role": "system", "content": system_prompt},
-        {"role": "user", "content": "Generate the full upgrade analysis and recommendations NOW."}
-    ]
+        YOU MUST REPLY WITH **NOTHING BUT** A VALID JSON OBJECT. No explanations, no markdown, no extra text.
 
-    try:
-        with st.status("Asking Ollama (Llama 3.1 8B)...", expanded=True) as status:
-            stream = ollama.chat(
-                model="llama3.1:8b",
-                messages=messages,
-                stream=True,
-                # These options make responses much more reliable for demos/role-play
-                options={
-                    "temperature": 0.7,
-                    "top_p": 0.92,
-                    "num_ctx": 8192,
-                }
-            )
+        Output exactly this structure:
 
-            full_response = ""
-            placeholder = st.empty()
+        {{
+        "analysis": "Full markdown analysis...",
+        "recommendations": [
+            {{
+            "id": "rec-001",
+            "title": "...",
+            "current_part": "...",
+            "recommended_model": "Exact model + part number",
+            "key_specs": "Key specs that matter for HFT",
+            "estimated_cost": 2290,
+            "impact": "25-40% lower latency...",
+            "why_this_model": "Why this exact model is perfect for the current system + budget",
+            "description": "1-2 sentence explanation"
+            }}
+        ]
+        }}
 
-            for chunk in stream:
-                content = chunk["message"].get("content", "")
-                full_response += content
-                placeholder.markdown(full_response + "▌")
+        Reply with ONLY the JSON. Do not add any other text."""
 
-            placeholder.empty()
-            status.update(label="✅ Analysis complete!", state="complete")
+        cfg = st.session_state.ai_config
 
-        return full_response, [], full_raw   # analysis, recommendations (empty), full_raw
-
-    except Exception as e:
-        error_msg = f"❌ Ollama error: {str(e)}\nMake sure `ollama serve` is running and the model is pulled."
-        st.error(error_msg)
-        return error_msg, [], full_raw
+        render_structured_ai_task(
+            context=context,
+            system_prompt=system_prompt,
+            result_key="last_upgrade",
+            task_name=f"Upgrade — {focus_name_str}",
+            model=cfg["model"],
+            temperature=0.0,                     # foricng 0.0 for perfect JSON (upgrade is special)
+            top_p=cfg["top_p"],
+            max_tokens=10000,
+            api_key=cfg.get("api_key"),
+            api_base=cfg.get("base_url")
+        )

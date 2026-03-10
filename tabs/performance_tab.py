@@ -3,9 +3,10 @@ import os
 from datetime import datetime
 import pandas as pd
 
-from data import get_available_hft_profiles, load_sections, build_system_profile, load_dynamic_df, take_ai_snapshot
+from data import get_available_hft_profiles
 from ai import perform_hft_analysis
 
+@st.fragment
 def render_performance_tab():
 
     st.subheader("Performance Optimizer")
@@ -60,7 +61,7 @@ def render_performance_tab():
             st.session_state.selected_recs = []
 
         for rec in last["recommendations"]:
-            with st.expander(f"{rec.get('title', 'Recommendation')} — {rec.get('impact', '')}", expanded=False):
+            with st.expander(f"{rec.get('title', 'Recommendation')} — {rec.get('impact', '')}", expanded=True):
                 risk_map = {"low": "🟢 Low", "medium": "🟡 Medium", "high": "🔴 High"}
                 st.markdown(f"**Risk:** {risk_map.get(rec.get('risk'), '🟡 Medium')}")
                 st.markdown(f"**Why it matters for HFT:** {rec.get('why_hft', '—')}")
@@ -74,18 +75,10 @@ def render_performance_tab():
                 elif not include and rec.get("id") in st.session_state.selected_recs:
                     st.session_state.selected_recs.remove(rec.get("id"))
 
-        col1, col2, col3 = st.columns(3)
-        with col1:
-            if st.button("Select All", width='stretch', key="select_all_perf"):
-                st.session_state.selected_recs = [r.get("id") for r in last["recommendations"] if r.get("id")]
-                st.rerun()
-        with col2:
-            if st.button("Deselect All", width='stretch', key="deselect_all_perf"):
-                st.session_state.selected_recs = []
-                st.rerun()
-        with col3:
-            if st.button("📥 Generate files", type="primary", width='stretch', key="generate_files_perf"):
-                generate_tuning_files(last)
+        # TODO: Generate Files
+
+        if st.button("📥 Generate files", type="primary", width='stretch', key="generate_files_perf"):
+            generate_tuning_files(last)
 
 # TODO: Tunning file
 

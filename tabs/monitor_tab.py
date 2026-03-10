@@ -5,11 +5,12 @@ import time
 import csv
 import os
 import pandas as pd
-from datetime import datetime, timedelta
+from datetime import datetime
 
-from data import load_sections, get_default_interface, load_dynamic_df_2
+from data import load_sections, load_dynamic_df
 from ai import get_ai_threshold
 
+@st.fragment
 def render_monitor_tab():
 
     st.subheader("Live System Monitoring")
@@ -28,7 +29,7 @@ def render_monitor_tab():
     if df is None:
         dynamic_df = pd.DataFrame()
     else:
-        dynamic_df = load_dynamic_df_2()
+        dynamic_df = load_dynamic_df()
 
     # TODO: Prerequisite
 
