@@ -9,10 +9,6 @@ from ai import perform_hft_analysis
 @st.fragment
 def render_performance_tab():
 
-    st.subheader("Performance Optimizer")
-
-    st.markdown("Choose profile → Preview context → Run → Select recommendations → Generate script.")
-
     # TODO: Prerequisite
 
     if not os.path.isfile("sections_config.xlsx") or "sections" not in st.session_state:
@@ -35,6 +31,20 @@ def render_performance_tab():
     
         return
 
+    os_config, bios, compiler, application_code = st.tabs(["OS Config Agent", "BIOS Agent", "Compiler Agent", "Application Code Agent"])
+
+    with os_config:
+
+        render_os_config()
+
+@st.fragment
+def render_os_config():
+
+    st.subheader("Performance Optimizer")
+
+    st.markdown("Choose profile → Preview context → Run → Select recommendations → Generate script.")
+
+    # TODO: Profile Selector
 
     profiles = get_available_hft_profiles()
     selected_profile = st.selectbox("Select HFT Profile", profiles, index=0)

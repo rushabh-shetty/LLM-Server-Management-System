@@ -6,6 +6,7 @@ from tabs.history_tab import render_history_tab
 from tabs.performance_tab import render_performance_tab
 from tabs.upgrade_tab import render_upgrade_tab
 from tabs.ai_settings_tab import render_ai_settings_tab 
+from tabs.agentic_optimizer import render_agentic_optimizer_tab
 from ai_config import load_ai_config                  
 
 # TODO: Read AI config
@@ -23,7 +24,7 @@ st.title("LLM Management System", text_alignment="center")
 
 # TODO: Tabs
 
-tab_data, tab_monitor, tab_history, tab_performance, tab_upgrade, tab_ai = st.tabs(["Data", "Monitor Data", "Trends", "Performance", "Upgrade", "AI Settings"])
+tab_data, tab_monitor, tab_history, tab_performance, tab_upgrade, tab_agentic_optimizer, tab_ai_settings = st.tabs(["Data", "Monitor Data", "Trends", "Performance", "Upgrade", "Agentic Optimizer", "AI Settings"])
 
 with tab_data:
 
@@ -45,6 +46,10 @@ with tab_upgrade:
 
     render_upgrade_tab()
 
-with tab_ai:        
+with tab_agentic_optimizer:
+
+    render_agentic_optimizer_tab()
+
+with tab_ai_settings:        
 
     render_ai_settings_tab()
