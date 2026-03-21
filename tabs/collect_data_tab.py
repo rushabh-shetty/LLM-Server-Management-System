@@ -8,7 +8,7 @@ import os
 
 def render_collect_data_tab():
 
-    st.subheader("HFT System Information Collector")
+    st.header("HFT System Information Collector")
 
     st.markdown("Click the button to collect and view system info.")
 

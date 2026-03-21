@@ -6,7 +6,7 @@ from datetime import timedelta
 
 @st.fragment
 def render_history_tab():
-    st.subheader("Historical Data Analysis")
+    st.header("Historical Data Analysis")
     st.markdown("""
     View and analyze the full monitoring history collected from the Live Monitoring tab.
     """)

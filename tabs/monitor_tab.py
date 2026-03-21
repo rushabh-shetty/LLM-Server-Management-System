@@ -13,7 +13,7 @@ from ai import get_ai_threshold
 @st.fragment
 def render_monitor_tab():
 
-    st.subheader("Live System Monitoring")
+    st.header("Live System Monitoring")
 
     st.markdown("""
     Tracks `dynamic_single` numeric metrics from your Excel config.  

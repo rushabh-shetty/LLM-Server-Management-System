@@ -2,6 +2,8 @@ import pandas as pd
 import os
 import subprocess
 import streamlit as st
+import re
+from pathlib import Path
 
 @st.cache_data(ttl="10min", show_spinner=False)
 def load_sections():
@@ -172,3 +174,66 @@ def generate_selected_report(last):
         use_container_width=True
     )
     st.success("✅ Report generated with your selected upgrades!")
+
+def detect_build_system(project_path):
+    
+    # To extend for other languages later just add to the build_markers dict
+
+    if not os.path.isdir(project_path):
+        return {"error": f"Path not found or not a directory: {project_path}"}
+
+    result = {
+        "project_path": project_path,
+        "build_type": "unknown",
+        "build_files": [],
+        "compiler": "unknown",
+        "current_flags": "",
+        "detected_make_vars": {}
+    }
+
+    # TODO: Build file markers 
+
+    build_markers = {
+        "Makefile": "make",
+        "CMakeLists.txt": "cmake",
+        "setup.py": "python",
+        "Cargo.toml": "rust",
+        "build.ninja": "ninja",
+        "pyproject.toml": "python",
+    }
+
+    # TODO: Path finder
+
+    for root, _, files in os.walk(project_path, topdown=True, followlinks=False):
+        for f in files:
+            if f in build_markers:
+                full = os.path.join(root, f)
+                result["build_files"].append(full)
+                if result["build_type"] == "unknown":
+                    result["build_type"] = build_markers[f]
+
+    # TODO: Detect compiler version
+
+    for cmd in ["gcc --version", "clang --version"]:
+        try:
+            out = subprocess.check_output(cmd, shell=True, text=True, timeout=3).strip()
+            result["compiler"] = f"gcc ({out.splitlines()[0]})" if "gcc" in cmd else f"clang ({out.splitlines()[0]})"
+            break
+        except:
+            continue
+
+    # TODO: Flag extraction from Makefiles
+    
+    for bf in result["build_files"]:
+        if "Makefile" in bf.lower() or "makefile" in bf.lower():
+            try:
+                content = Path(bf).read_text(errors="ignore")
+                for var in ["CFLAGS", "CXXFLAGS", "LDFLAGS"]:
+                    m = re.search(rf"^{var}\s*[:?]?=\s*(.+?)(?:#|$)", content, re.MULTILINE)
+                    if m:
+                        result["current_flags"] = m.group(1).strip()
+                        result["detected_make_vars"][var] = m.group(1).strip()
+            except:
+                pass
+
+    return result

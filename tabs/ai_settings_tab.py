@@ -2,7 +2,8 @@ import streamlit as st
 from ai_config import save_ai_config, test_ai_connection
 
 def render_ai_settings_tab():
-    st.subheader("AI Model & API Settings")
+    
+    st.header("AI Model & API Settings")
     st.caption("Changes here apply to **every** AI call in the app instantly")
 
     # TODO: Select AI

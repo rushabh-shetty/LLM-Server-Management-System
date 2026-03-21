@@ -310,7 +310,7 @@ def get_ai_threshold():
         clear_key="threshold_clear_chat"
     )
 
-# TODO: Performance analyzer
+# TODO: OS Performance analyzer
 
 def perform_hft_analysis(selected_profile):
 
@@ -421,6 +421,80 @@ def perform_hft_analysis(selected_profile):
             temperature=0.0,    # foricng 0.0 for perfect JSON (upgrade is special)
             top_p=cfg["top_p"],
             max_tokens=cfg["max_tokens"],
+            api_key=cfg.get("api_key"),
+            api_base=cfg.get("base_url")
+        )
+
+
+# TODO: Compiler performace analysis 
+
+def perform_compiler_analysis(selected_profile, build_context):
+
+    if "sections" not in st.session_state:
+        st.info("Run Data tab first")
+        return
+
+    full_hardware_summary = build_system_profile(st.session_state.sections)
+    build_text = json.dumps(build_context, indent=2) if build_context else "No build system scanned yet."
+
+    context = {
+        "short_summary": full_hardware_summary,
+        "selected_profile": selected_profile,
+        "build_context": build_context,
+    }
+
+    # TODO: Preview
+    with st.expander("Preview AI context", expanded=False):
+        st.markdown("**Hardware Summary**")
+        st.markdown(full_hardware_summary or "—")
+        st.markdown(f"**Selected Profile:** {selected_profile}")
+        st.markdown("**Detected Build System**")
+        st.code(build_text, language="json")
+
+    # TODO: Run Button + AI Call
+
+    if st.button("🚀 Run One-Shot Compiler Analysis", type="primary", use_container_width=True):
+        system_prompt = f"""
+
+        You are an expert HFT compiler engineer (2025 era).
+
+        FULL HARDWARE SUMMARY (use this to pick correct -march/-mtune):
+        {full_hardware_summary}
+
+        USER PROJECT BUILD SYSTEM:
+        {build_text}
+
+        YOU MUST output **EXACTLY** this JSON structure and nothing else:
+
+        {{
+        "analysis": "=== Compiler Analysis ===\\n\\nYour full markdown report here...",
+        "recommendations": [
+            {{
+            "id": "comp-001",
+            "title": "Enable native CPU tuning",
+            "current_flags": "existing flags or —",
+            "recommended_flags": "-march=native -mtune=native -O3 -flto -fprofile-use",
+            "rebuild_command": "make clean && make -j$(nproc) CFLAGS=\"...\"",
+            "impact": "15-35% lower end-to-end latency",
+            "why_hft": "Removes micro-architecture penalties and enables LTO + PGO",
+            "description": "1-2 sentence explanation"
+            }}
+        ]
+        }}
+
+        Reply with ONLY the JSON. Do not add any other text.
+        """
+
+        cfg = st.session_state.ai_config
+        render_structured_ai_task(
+            context=context,
+            system_prompt=system_prompt,
+            result_key="last_compiler_analysis",
+            task_name=f"Compiler — {selected_profile}",
+            model=cfg["model"],
+            temperature=0.0,
+            top_p=cfg["top_p"],
+            max_tokens=10000,
             api_key=cfg.get("api_key"),
             api_base=cfg.get("base_url")
         )

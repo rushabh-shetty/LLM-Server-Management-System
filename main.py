@@ -24,7 +24,7 @@ st.title("LLM Management System", text_alignment="center")
 
 # TODO: Tabs
 
-tab_data, tab_monitor, tab_history, tab_performance, tab_upgrade, tab_agentic_optimizer, tab_ai_settings = st.tabs(["Data", "Monitor Data", "Trends", "Performance", "Upgrade", "Agentic Optimizer", "AI Settings"])
+tab_data, tab_monitor, tab_history, tab_performance, tab_upgrade, tab_ai_settings = st.tabs(["Data", "Monitor Data", "Trends", "Performance", "Upgrade", "AI Settings"])
 
 with tab_data:
 
@@ -45,10 +45,6 @@ with tab_performance:
 with tab_upgrade:
 
     render_upgrade_tab()
-
-with tab_agentic_optimizer:
-
-    render_agentic_optimizer_tab()
 
 with tab_ai_settings:        
 

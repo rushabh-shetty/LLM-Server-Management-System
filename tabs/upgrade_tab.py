@@ -9,7 +9,7 @@ from ai import perform_upgrade_analysis, render_ai_chat
 @st.fragment
 def render_upgrade_tab():
 
-    st.subheader("Upgrade Advisor")
+    st.header("Upgrade Advisor")
 
     st.markdown("Targeted hardware upgrade recommendations optimized for your HFT system and budget.")
 
