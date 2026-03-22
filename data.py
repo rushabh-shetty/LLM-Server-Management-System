@@ -188,17 +188,18 @@ def detect_build_system(project_path):
         "build_files": [],
         "compiler": "unknown",
         "current_flags": "",
-        "detected_make_vars": {}
+        "detected_make_vars": {},
+        "hot_paths": []                     # For Application Code
     }
 
     # TODO: Build file markers 
 
     build_markers = {
-        "Makefile": "make",
-        "CMakeLists.txt": "cmake",
+        "Makefile": "make", 
+        "CMakeLists.txt": "cmake", 
         "setup.py": "python",
-        "Cargo.toml": "rust",
-        "build.ninja": "ninja",
+        "Cargo.toml": "rust", 
+        "build.ninja": "ninja", 
         "pyproject.toml": "python",
     }
 
@@ -223,9 +224,9 @@ def detect_build_system(project_path):
             continue
 
     # TODO: Flag extraction from Makefiles
-    
+
     for bf in result["build_files"]:
-        if "Makefile" in bf.lower() or "makefile" in bf.lower():
+        if "Makefile" in bf.lower():
             try:
                 content = Path(bf).read_text(errors="ignore")
                 for var in ["CFLAGS", "CXXFLAGS", "LDFLAGS"]:
@@ -236,4 +237,56 @@ def detect_build_system(project_path):
             except:
                 pass
 
+    # TODO: HOT-PATH detection for Application code 
+
+    hft_keywords = ["order", "trade", "match", "book", "risk", "price", "position", "fill", "cancel", "latency"]
+    for root, _, files in os.walk(project_path, topdown=True, followlinks=False):
+        for f in files:
+            if f.endswith((".cpp", ".h", ".cc", ".rs", ".py", ".pyx", ".c")):
+                full = os.path.join(root, f)
+                try:
+                    content = Path(full).read_text(errors="ignore")
+                    lines = content.splitlines()
+                    for i, line in enumerate(lines):
+                        if any(kw in line.lower() for kw in hft_keywords):
+                            func = "unknown"
+                            if f.endswith(".py") and "def " in line:
+                                func = line.split("def ")[1].split("(")[0].strip()
+                            elif "(" in line and any(x in line for x in ["int ", "void ", "fn "]):
+                                func = line.split("(")[0].split()[-1].strip()
+                            snippet = "\n".join(lines[max(0, i-3):i+4])[:400]
+                            result["hot_paths"].append({
+                                "file": os.path.relpath(full, project_path),
+                                "line": i + 1,
+                                "function": func,
+                                "snippet": snippet,
+                                "why": "contains latency-critical keywords"
+                            })
+                            break  # one hit per file
+                except:
+                    pass
+
+    result["hot_paths"] = result["hot_paths"][:12]  # limit for UI
+
     return result
+
+def get_bios_context(sections):
+
+    #keyword matching to filter BIOS info
+
+    bios_data = {}
+    bios_keywords = ["bios", "firmware", "dmidecode", "cpupower", "c-state", "aspm", 
+                     "pcie", "idle", "power management", "smc", "boot rom", "chipset", 
+                     "motherboard", "frequency-info", "lspci"]
+    
+    for title, subs in sections.items():
+        title_lower = title.lower()
+        if any(k in title_lower for k in bios_keywords):
+            bios_data[title] = subs
+        else:
+            # Also catch subsections
+            for subtitle, data in subs.items():
+                if any(k in str(data.get("output", "")).lower() for k in bios_keywords):
+                    bios_data[title] = subs
+                    break
+    return bios_data

@@ -6,7 +6,7 @@ import re
 from datetime import datetime
 from litellm import completion
 
-from data import load_sections, load_dynamic_df, build_system_profile, take_ai_snapshot, build_full_raw_text
+from data import load_sections, load_dynamic_df, build_system_profile, take_ai_snapshot, build_full_raw_text, get_bios_context
 
 # TODO: Generic AI calls
 
@@ -371,7 +371,7 @@ def perform_hft_analysis(selected_profile):
 
     # TODO: Run Button + AI Call
 
-    if st.button("🚀 Run Performance Analysis", type="primary", width='stretch'):
+    if st.button("🚀 Run OS Analysis", type="primary", width='stretch'):
 
         system_prompt = f"""
         
@@ -425,6 +425,109 @@ def perform_hft_analysis(selected_profile):
             api_base=cfg.get("base_url")
         )
 
+# TODO: BIOS performance analysis
+
+def perform_bios_analysis(selected_profile: str):
+    
+    if "sections" not in st.session_state:
+        st.info("Run Data tab first")
+        return
+
+    all_sections = st.session_state.sections
+    full_hardware_summary = build_system_profile(all_sections)
+
+    # TODO: Profile Filtering
+
+    if selected_profile == "All Sections":
+        profile_sections = all_sections
+    else:
+        df = load_sections()
+        profile_titles = df[df["HFT_Profile"] == selected_profile]["Section_Title"].unique().tolist()
+        profile_sections = {k: v for k, v in all_sections.items() if k in profile_titles}
+
+    full_profile_data = build_full_raw_text(profile_sections)
+    bios_ctx = get_bios_context(all_sections)
+    bios_text = json.dumps({k: {sub: v["output"][:500] for sub, v in subs.items()} 
+                           for k, subs in list(bios_ctx.items())[:6]}, indent=2)
+
+    context = {
+        "short_summary": full_hardware_summary,
+        "selected_profile": selected_profile,
+        "full_profile_data": full_profile_data,
+        "bios_context": bios_ctx,
+    }
+
+    # TODO: Preview
+
+    with st.expander("Preview AI context", expanded=False):
+        st.markdown("**Hardware Summary**")
+        st.markdown(full_hardware_summary or "—")
+        st.markdown(f"**Selected Profile:** {selected_profile}")
+        st.markdown("**Detailed sections for this profile**")
+        st.code(full_profile_data.strip() or "No sections", language=None)
+        st.markdown("**BIOS & Firmware Data**")
+        if bios_ctx:
+            preview_df = []
+            for title, subs in bios_ctx.items():
+                for subtitle, data in list(subs.items())[:8]:
+                    out = data.get("output", "")[:120].replace("\n", " ")
+                    preview_df.append({"Section": title, "Setting": subtitle, "Current Value": out})
+            st.dataframe(pd.DataFrame(preview_df), use_container_width=True, hide_index=True)
+        else:
+            st.code(bios_text, language="json")
+    
+    # TODO: Run Button + AI Call
+
+    if st.button("🚀 Run BIOS Analysis", type="primary", use_container_width=True):
+        system_prompt = f"""
+
+        You are an expert HFT BIOS/UEFI tuning engineer (2025 era).
+
+        FULL HARDWARE SUMMARY:
+        {full_hardware_summary}
+
+        DETAILED PROFILE SECTIONS:
+        {full_profile_data}
+
+        CURRENT BIOS/FIRMWARE SETTINGS:
+        {bios_text}
+
+        YOU MUST output **EXACTLY** this JSON and nothing else:
+
+        {{
+        "analysis": "=== BIOS Analysis ===\\n\\nYour full markdown report here...",
+        "recommendations": [
+            {{
+                "id": "bios-001",
+                "current_setting": "C-States: Enabled",
+                "recommended_value": "C-States: Disabled",
+                "bios_menu_path": "Enter BIOS → Advanced → CPU Configuration → C-States → Disabled",
+                "impact": "8-25 μs lower latency per packet",
+                "risk": "low",
+                "reboot_required": "YES",
+                "why_hft": "Eliminates CPU power-state exit latency in the critical path",
+                "description": "Short explanation"
+            }}
+        ]
+        }}
+
+        Reply with ONLY the JSON.
+        """
+
+        cfg = st.session_state.ai_config
+
+        render_structured_ai_task(
+            context=context,
+            system_prompt=system_prompt,
+            result_key="last_bios_analysis",
+            task_name=f"BIOS — {selected_profile}",
+            model=cfg["model"],
+            temperature=0.0,
+            top_p=cfg["top_p"],
+            max_tokens=10000,
+            api_key=cfg.get("api_key"),
+            api_base=cfg.get("base_url")
+        )
 
 # TODO: Compiler performace analysis 
 
@@ -434,37 +537,57 @@ def perform_compiler_analysis(selected_profile, build_context):
         st.info("Run Data tab first")
         return
 
-    full_hardware_summary = build_system_profile(st.session_state.sections)
+    all_sections = st.session_state.sections
+    full_hardware_summary = build_system_profile(all_sections)
+
+    # TODO: Profile Filtering
+
+    if selected_profile == "All Sections":
+        profile_sections = all_sections
+    else:
+        df = load_sections()
+        profile_titles = df[df["HFT_Profile"] == selected_profile]["Section_Title"].unique().tolist()
+        profile_sections = {k: v for k, v in all_sections.items() if k in profile_titles}
+
+    full_profile_data = build_full_raw_text(profile_sections)
+
     build_text = json.dumps(build_context, indent=2) if build_context else "No build system scanned yet."
 
     context = {
         "short_summary": full_hardware_summary,
         "selected_profile": selected_profile,
+        "full_profile_data": full_profile_data,
         "build_context": build_context,
     }
 
     # TODO: Preview
+
     with st.expander("Preview AI context", expanded=False):
         st.markdown("**Hardware Summary**")
         st.markdown(full_hardware_summary or "—")
         st.markdown(f"**Selected Profile:** {selected_profile}")
+        st.markdown("**Detailed sections for this profile**")
+        st.code(full_profile_data.strip() or "No sections", language=None)
         st.markdown("**Detected Build System**")
         st.code(build_text, language="json")
 
     # TODO: Run Button + AI Call
 
-    if st.button("🚀 Run One-Shot Compiler Analysis", type="primary", use_container_width=True):
+    if st.button("🚀 Run Compiler Analysis", type="primary", use_container_width=True):
         system_prompt = f"""
 
         You are an expert HFT compiler engineer (2025 era).
 
-        FULL HARDWARE SUMMARY (use this to pick correct -march/-mtune):
+        FULL HARDWARE SUMMARY:
         {full_hardware_summary}
+
+        DETAILED PROFILE SECTIONS:
+        {full_profile_data}
 
         USER PROJECT BUILD SYSTEM:
         {build_text}
 
-        YOU MUST output **EXACTLY** this JSON structure and nothing else:
+        YOU MUST output **EXACTLY** this JSON and nothing else:
 
         {{
         "analysis": "=== Compiler Analysis ===\\n\\nYour full markdown report here...",
@@ -495,6 +618,101 @@ def perform_compiler_analysis(selected_profile, build_context):
             temperature=0.0,
             top_p=cfg["top_p"],
             max_tokens=10000,
+            api_key=cfg.get("api_key"),
+            api_base=cfg.get("base_url")
+        )
+
+# TODO: Aplication code performance analysis 
+
+def perform_application_code_analysis(selected_profile, code_context):
+
+    if "sections" not in st.session_state:
+        st.info("Run Data tab first")
+        return
+
+    all_sections = st.session_state.sections
+    full_hardware_summary = build_system_profile(all_sections)
+
+    # TODO: Profile Filtering
+
+    if selected_profile == "All Sections":
+        profile_sections = all_sections
+    else:
+        df = load_sections()
+        profile_titles = df[df["HFT_Profile"] == selected_profile]["Section_Title"].unique().tolist()
+        profile_sections = {k: v for k, v in all_sections.items() if k in profile_titles}
+
+    full_profile_data = build_full_raw_text(profile_sections)
+
+    code_text = json.dumps(code_context, indent=2) if code_context else "No code scanned yet."
+
+    context = {
+        "short_summary": full_hardware_summary,
+        "selected_profile": selected_profile,
+        "full_profile_data": full_profile_data,
+        "code_context": code_context,
+    }
+
+    # TODO: Preview
+
+    with st.expander("Preview AI context", expanded=False):
+        st.markdown("**Hardware Summary**")
+        st.markdown(full_hardware_summary or "—")
+        st.markdown(f"**Selected Profile:** {selected_profile}")
+        st.markdown("**Detailed sections for this profile**")
+        st.code(full_profile_data.strip() or "No sections", language=None)
+        st.markdown("**Detected Hot Paths**")
+        if code_context.get("hot_paths"):
+            st.dataframe(pd.DataFrame(code_context["hot_paths"]), use_container_width=True, hide_index=True)
+        else:
+            st.code(code_text, language="json")
+
+    # TODO: Run Button + AI Call
+
+    if st.button("🚀 Run Code Analysis", type="primary", use_container_width=True):
+        system_prompt = f"""
+        You are an expert HFT low-latency code reviewer (2025 era).
+
+        FULL HARDWARE SUMMARY:
+        {full_hardware_summary}
+
+        DETAILED PROFILE SECTIONS:
+        {full_profile_data}
+
+        HOT-PATH CODE DETECTED:
+        {code_text}
+
+        YOU MUST output **EXACTLY** this JSON and nothing else:
+
+        {{
+        "analysis": "=== Application Code Analysis ===\\n\\nYour full markdown report...",
+        "recommendations": [
+            {{
+            "id": "code-001",
+            "file": "src/order_book.cpp",
+            "line": 142,
+            "current_smell": "Naive loop without branch prediction",
+            "suggested_patch": "```diff\\n- for(auto& o : orders) ...\\n+ if (__builtin_expect(o.valid, 1)) ...\\n```",
+            "impact": "18-42 μs lower per order match",
+            "why_hft": "Removes branch misprediction in the hottest loop",
+            "description": "Short explanation"
+            }}
+        ]
+        }}
+
+        Reply with ONLY the JSON.
+        """
+
+        cfg = st.session_state.ai_config
+        render_structured_ai_task(
+            context=context,
+            system_prompt=system_prompt,
+            result_key="last_application_analysis",
+            task_name=f"App Code — {selected_profile}",
+            model=cfg["model"],
+            temperature=0.0,
+            top_p=cfg["top_p"],
+            max_tokens=12000,
             api_key=cfg.get("api_key"),
             api_base=cfg.get("base_url")
         )

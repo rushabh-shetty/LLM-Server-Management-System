@@ -4,7 +4,7 @@ from datetime import datetime
 import pandas as pd
 
 from data import get_available_hft_profiles, detect_build_system, build_system_profile
-from ai import perform_hft_analysis, perform_compiler_analysis, render_ai_chat
+from ai import perform_hft_analysis, perform_compiler_analysis, render_ai_chat, perform_application_code_analysis, perform_bios_analysis
 
 @st.fragment
 def render_performance_tab():
@@ -39,11 +39,19 @@ def render_performance_tab():
 
         render_os_config()
 
+    with bios:
+
+        render_bios()
+
     with compiler:
 
-        render_compiler_agent()
+        render_compiler()
 
-# TODO: OS Analysis
+    with application_code:
+
+        render_application_code()
+
+# TODO: SUB TAB OS Analysis
 
 @st.fragment
 def render_os_config():
@@ -97,6 +105,48 @@ def render_os_config():
 
         if st.button("📥 Generate files", type="primary", width='stretch', key="generate_files_perf"):
             generate_tuning_files(last)
+        
+        # TODO: Chat box
+
+        st.divider()
+        st.markdown("### 💬 Discuss these OS recommendations")
+
+        rec_summary = "\n".join([
+            f"• {r.get('title')} — {r.get('impact', '')}  \n"
+            f"  Commands: {r.get('commands', [])}  \n"
+            f"  Risk: {r.get('risk', 'medium')}"
+            for r in last.get("recommendations", [])
+        ])
+
+        qa_prompt = f"""
+        You are an expert HFT low-latency Linux tuning advisor.
+
+        ALL RECOMMENDED OS CHANGES (use these exact items):
+        {rec_summary or "No recommendations yet."}
+
+        Full analysis:
+        {last.get("analysis_md", "")}
+
+        Hardware:
+        {build_system_profile(st.session_state.sections)}
+
+        Answer any question about order of application, risks, kernel compatibility, testing, or alternatives."""
+
+        cfg = st.session_state.ai_config
+        render_ai_chat(
+            system_prompt=qa_prompt,
+            welcome_message="Ask me anything about these OS tweaks — order, risks, testing, alternatives, etc.",
+            input_placeholder="Should I apply the hugepages fix before or after the sysctl changes?",
+            model=cfg["model"],
+            temperature=cfg["temperature"],
+            top_p=cfg["top_p"],
+            max_tokens=cfg["max_tokens"],
+            api_key=cfg.get("api_key"),
+            base_url=cfg.get("base_url"),
+            messages_key="os_chat_messages",
+            chat_input_key="os_chat_input",
+            clear_key="os_chat_clear"
+        )
 
 # TODO: Tunning file
 
@@ -133,10 +183,121 @@ def generate_tuning_files(last):
         st.download_button("⬇️ Download performance_report.md", report_md, "performance_report.md", "text/markdown", key="download_md")
     st.success("✅ Files generated!")
 
-# TODO: Compiler Analysis
+# TODO: SUB TAB BIOS
 
 @st.fragment
-def render_compiler_agent():
+def render_bios():
+    st.subheader("BIOS Optimizer")
+    st.markdown("Review and optimize firmware settings for ultra-low latency HFT.")
+
+    # TODO: Profile Selector
+
+    profiles = get_available_hft_profiles()
+    selected_profile = st.selectbox("Select HFT Profile", profiles, index=0, key="bios_profile")
+
+    # TODO: Call AI
+
+    perform_bios_analysis(selected_profile)
+
+    # TODO: Formatting Results
+
+    if "last_bios_analysis" in st.session_state:
+        last = st.session_state.last_bios_analysis
+        st.success(f"**{last['profile']}** — {last['timestamp']}")
+
+        with st.expander("📋 Full Analysis Report", expanded=True):
+            st.markdown(last.get("analysis_md", "No output"))
+
+        st.subheader("🔧 BIOS Recommendations")
+        if "selected_bios_recs" not in st.session_state:
+            st.session_state.selected_bios_recs = []
+
+        for rec in last.get("recommendations", []):
+            with st.expander(f"{rec.get('current_setting', 'Setting')} → {rec.get('recommended_value', '')}", expanded=True):
+                st.markdown(f"**BIOS Menu Path:** {rec.get('bios_menu_path', '—')}")
+                st.markdown(f"**Impact:** {rec.get('impact', '—')}")
+                st.markdown(f"**Risk:** {rec.get('risk', 'medium').upper()} | **Reboot required:** {rec.get('reboot_required', 'YES')}")
+                st.markdown(rec.get("description", ""))
+                st.markdown(f"**Why HFT:** {rec.get('why_hft', '—')}")
+
+                include = st.checkbox("Include in checklist", value=True, key=f"chk_bios_{rec.get('id')}")
+                if include and rec.get("id") not in st.session_state.selected_bios_recs:
+                    st.session_state.selected_bios_recs.append(rec.get("id"))
+                elif not include and rec.get("id") in st.session_state.selected_bios_recs:
+                    st.session_state.selected_bios_recs.remove(rec.get("id"))
+
+        if st.button("📥 Generate bios_checklist.md", type="primary", width='stretch'):
+            generate_bios_checklist(last)
+
+        # TODO: Chat Box
+
+        st.divider()
+        st.markdown("### 💬 Discuss these BIOS changes")
+
+        rec_summary = "\n".join([
+            f"• {r.get('current_setting')} → {r.get('recommended_value')} ({r.get('impact', '')})"
+            for r in last.get("recommendations", [])
+        ])
+
+        qa_prompt = f"""
+        You are an expert HFT BIOS tuner.
+
+        ALL RECOMMENDED CHANGES:
+        {rec_summary or "No recommendations yet."}
+
+        Full analysis:
+        {last.get("analysis_md", "")}
+
+        Hardware:
+        {build_system_profile(st.session_state.sections)}
+
+        Answer questions about order of changes, risks, testing after reboot, or alternatives."""
+
+        cfg = st.session_state.ai_config
+        render_ai_chat(
+            system_prompt=qa_prompt,
+            welcome_message="Ask me anything about these BIOS settings — order, risks, testing, etc.",
+            input_placeholder="Should I disable C-States before or after ASPM?",
+            model=cfg["model"],
+            temperature=cfg["temperature"],
+            top_p=cfg["top_p"],
+            max_tokens=cfg["max_tokens"],
+            api_key=cfg.get("api_key"),
+            base_url=cfg.get("base_url"),
+            messages_key="bios_chat_messages",
+            chat_input_key="bios_chat_input",
+            clear_key="bios_chat_clear"
+        )
+
+def generate_bios_checklist(last):
+    selected = [r for r in last.get("recommendations", []) if r.get("id") in st.session_state.get("selected_bios_recs", [])]
+    if not selected:
+        st.warning("Select at least one recommendation")
+        return
+
+    md = f"# HFT BIOS Optimization Checklist — {last.get('profile', 'Unknown')}\n\n"
+    md += f"**Generated:** {datetime.now().strftime('%Y-%m-%d %H:%M')}\n\n"
+    for i, rec in enumerate(selected, 1):
+        md += f"### {i}. {rec.get('current_setting')} → {rec.get('recommended_value')}\n"
+        md += f"**Menu Path:** {rec.get('bios_menu_path')}\n"
+        md += f"**Impact:** {rec.get('impact')}\n"
+        md += f"**Risk:** {rec.get('risk', 'medium').upper()} | Reboot required: {rec.get('reboot_required', 'YES')}\n"
+        md += f"{rec.get('description', '')}\n\n"
+        md += "☐ Done\n\n---\n\n"
+
+    st.download_button(
+        "⬇️ Download bios_checklist.md",
+        md,
+        "bios_checklist.md",
+        "text/markdown",
+        use_container_width=True
+    )
+    st.success("✅ BIOS checklist ready!")
+
+# TODO: SUB TAB Compiler Analysis
+
+@st.fragment
+def render_compiler():
     st.subheader("Compiler Optimizer")
     st.markdown("Scan your HFT project → AI suggests optimal compiler flags for your exact CPU.")
 
@@ -156,7 +317,7 @@ def render_compiler_agent():
             help="Full absolute path to your source code folder"
         )
     with col_scan:
-        if st.button("🔍 Scan Build System", type="primary", use_container_width=True):
+        if st.button("🔍 Scan Build System", type="primary", use_container_width=True, key = "compiler_scan_button"):
             if project_path:
                 build_ctx = detect_build_system(project_path)
                 st.session_state.compiler_build_context = build_ctx
@@ -171,7 +332,10 @@ def render_compiler_agent():
 
     # TODO: Run AI
 
-    perform_compiler_analysis(selected_profile, build_ctx)
+    if build_ctx and "error" not in build_ctx and build_ctx.get("build_files"):
+        perform_compiler_analysis(selected_profile, build_ctx)
+    else:
+        st.info("Please scan a project folder first to unlock the analysis button.")
 
     # TODO: Result Display
 
@@ -295,3 +459,154 @@ def generate_compiler_tuning_script(last):
             use_container_width=True
         )
     st.success("✅ Compiler tuning script ready!")
+
+# TODO: SUB TAB Application code
+
+@st.fragment
+def render_application_code():
+    st.subheader("Application Code Optimizer")
+    st.markdown("Scan your trading source code → AI suggests line-by-line HFT latency fixes.")
+
+    # TODO: Profile selector 
+
+    profiles = get_available_hft_profiles()
+    selected_profile = st.selectbox("Select HFT Profile", profiles, index=0, key="appcode_profile")
+
+    # TODO: Project path + Scan
+
+    col_path, col_scan = st.columns([4, 1], vertical_alignment="bottom")
+    with col_path:
+        project_path = st.text_input(
+            "Project folder path",
+            value=os.path.expanduser("~/test_hft_bot"),
+            placeholder="/home/alejandro/my_hft_bot",
+            help="Full path to your source code"
+        )
+    with col_scan:
+        if st.button("🔍 Scan Build System", type="primary", use_container_width=True, key = "application_scan_button"):
+            if project_path:
+                ctx = detect_build_system(project_path)
+                st.session_state.appcode_context = ctx
+                if "error" in ctx:
+                    st.error(ctx["error"])
+                else:
+                    st.success(f"✅ Scanned {len(ctx.get('hot_paths', []))} hot paths")
+            else:
+                st.warning("Enter a path first")
+
+    ctx = st.session_state.get("appcode_context", {})
+
+    # TODO: Run AI
+
+    if ctx and "error" not in ctx and ctx.get("hot_paths"):
+        perform_application_code_analysis(selected_profile, ctx)
+    else:
+        st.info("Please scan a project folder first to unlock the analysis button.")
+
+    # TODO: Result Display
+
+    if "last_application_analysis" in st.session_state:
+        last = st.session_state.last_application_analysis
+        st.success(f"**{last['profile']}** — {last['timestamp']}")
+
+        with st.expander("📋 Full Analysis Report", expanded=True):
+            st.markdown(last.get("analysis_md", "No output"))
+
+        st.subheader("🔧 Code Recommendations")
+        if "selected_app_recs" not in st.session_state:
+            st.session_state.selected_app_recs = []
+
+        for rec in last.get("recommendations", []):
+            with st.expander(f"{rec.get('file')}:{rec.get('line')} — {rec.get('impact', '')}", expanded=True):
+                st.markdown(f"**Smell:** {rec.get('current_smell', '—')}")
+                st.code(rec.get("suggested_patch", ""), language="diff")
+                st.markdown(rec.get("description", ""))
+                st.markdown(f"**Impact:** {rec.get('impact', '')} | **Why HFT:** {rec.get('why_hft', '')}")
+
+                if st.button("📋 Copy patch", key=f"copy_patch_{rec.get('id')}"):
+                    st.code(rec.get("suggested_patch", ""), language=None)
+                    st.toast("✅ Patch copied!")
+
+                include = st.checkbox("Include in script", value=True, key=f"chk_app_{rec.get('id')}")
+                if include and rec.get("id") not in st.session_state.selected_app_recs:
+                    st.session_state.selected_app_recs.append(rec.get("id"))
+                elif not include and rec.get("id") in st.session_state.selected_app_recs:
+                    st.session_state.selected_app_recs.remove(rec.get("id"))
+
+        if st.button("📥 Generate apply_patches.sh", type="primary", width='stretch'):
+            generate_apply_patches_script(last)
+
+        # TODO: Chat Box
+
+        st.divider()
+        st.markdown("### 💬 Discuss these code changes")
+
+        rec_summary = "\n".join([
+            f"• {r.get('file')}:{r.get('line')} — {r.get('current_smell', '')} → {r.get('impact', '')}"
+            for r in last.get("recommendations", [])
+        ])
+
+        qa_prompt = f"""
+        You are an expert HFT source-code optimizer.
+
+        ALL RECOMMENDED PATCHES:
+        {rec_summary or "No recommendations yet."}
+
+        Full analysis:
+        {last.get("analysis_md", "")}
+
+        Hardware:
+        {build_system_profile(st.session_state.sections)}
+
+        Answer any question about the patches, alternatives, order of application, testing strategy, or risks."""
+
+        cfg = st.session_state.ai_config
+        render_ai_chat(
+            system_prompt=qa_prompt,
+            welcome_message="Ask me anything about these patches — testing, risks, alternatives, etc.",
+            input_placeholder="Should I apply the branch prediction fix first?",
+            model=cfg["model"],
+            temperature=cfg["temperature"],
+            top_p=cfg["top_p"],
+            max_tokens=cfg["max_tokens"],
+            api_key=cfg.get("api_key"),
+            base_url=cfg.get("base_url"),
+            messages_key="appcode_chat_messages",
+            chat_input_key="appcode_chat_input",
+            clear_key="appcode_chat_clear"
+        )
+
+def generate_apply_patches_script(last):
+    selected = [r for r in last.get("recommendations", []) if r.get("id") in st.session_state.get("selected_app_recs", [])]
+    if not selected:
+        st.warning("Select at least one patch")
+        return
+
+    script_lines = [
+        "#!/bin/bash",
+        f"# HFT Patch Application Script — Generated {datetime.now().strftime('%Y-%m-%d %H:%M')}",
+        'PATCH_DIR="$HOME/hft_patches"',
+        'mkdir -p "$PATCH_DIR"',
+        'echo -e "\\033[1;36m=== Applying HFT Patches ===\\033[0m"'
+    ]
+    for i, rec in enumerate(selected, 1):
+        patch_file = f"patch_{i:03d}_{rec.get('id')}.patch"
+        script_lines.append(f'cat > "$PATCH_DIR/{patch_file}" << \'EOF\'')
+        script_lines.append(rec.get("suggested_patch", "").replace("```diff", "").replace("```", "").strip())
+        script_lines.append('EOF')
+        script_lines.append(f'echo -e "\\033[1;33mPatch {i}: {rec.get("file")}:{rec.get("line")} ===\\033[0m"')
+        script_lines.append('read -p "Apply this patch? (y/N): " ans')
+        script_lines.append('if [[ $ans =~ ^[Yy]$ ]]; then')
+        script_lines.append(f'    patch -p0 < "$PATCH_DIR/{patch_file}" && echo -e "\\033[32m✅ Applied\\033[0m"')
+        script_lines.append('else')
+        script_lines.append('    echo -e "\\033[33m⏭️ Skipped\\033[0m"')
+        script_lines.append('fi')
+
+    script_content = "\n".join(script_lines)
+
+    col1, col2 = st.columns(2)
+    with col1:
+        st.download_button("⬇️ Download apply_patches.sh", script_content, "apply_patches.sh", "text/x-shellscript", use_container_width=True)
+    with col2:
+        st.download_button("⬇️ Download code_report.md", f"# Application Code Report\\n\\n{last.get('analysis_md', '')}", "code_report.md", "text/markdown", use_container_width=True)
+    st.success("✅ Patch script ready! (Patches saved safely in ~/hft_patches/)")
