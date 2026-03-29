@@ -3,12 +3,16 @@ import subprocess
 import time
 from collections import OrderedDict
 import io
-from data import load_sections, get_default_interface
+from data import load_sections, get_default_interface, get_redfish_bios, get_redfish_groups
 import os
+import json
 
 def render_collect_data_tab():
 
     st.header("HFT System Information Collector")
+
+    st.divider()
+    st.subheader("Local System Information Collection")
 
     st.markdown("Click the button to collect and view system info.")
 
@@ -167,5 +171,75 @@ def render_collect_data_tab():
             file_name="system_info.txt",
             mime="text/plain"
         )
+
+    # TODO: Redfish Section
+
+    st.divider()
+    st.subheader("Redfish BMC BIOS Collection (Optional - Supermicro)")
+
+    if "redfish_enabled" not in st.session_state:
+        st.session_state.redfish_enabled = False
+
+    st.session_state.redfish_enabled = st.checkbox(
+        "Enable Redfish BIOS query",
+        value=st.session_state.redfish_enabled,
+        help="Fetch complete BIOS settings directly from the BMC"
+    )
+
+    if st.session_state.redfish_enabled:
+
+        col1, col2 = st.columns([3, 1])
+
+        with col1:
+            bmc_ip = st.text_input("BMC IP / Hostname", value="127.0.0.1", key="redfish_ip")
+            port = st.number_input("Port", value=8000, min_value=1, max_value=65535, key="redfish_port")
+            use_https = st.checkbox("Use HTTPS", value=False, key="redfish_https")
+
+        with col2:
+            username = st.text_input("Username", value="ADMIN", key="redfish_user")
+            password = st.text_input("Password", value="ADMIN", type="password", key="redfish_pass")
+
+        if st.button("Collect Redfish BIOS Data", type="primary"):
+            with st.spinner("Connecting to Redfish BMC..."):
+                result = get_redfish_bios(bmc_ip, port, use_https, username, password)
+                if result:
+                    st.session_state.redfish_bios = result
+                    st.success(f"✅ Successfully loaded **{result['total_settings']}** BIOS settings from Redfish BMC")
+                    st.rerun()
+                else:
+                    st.error("Failed to fetch Redfish data — check IP/port and that the mock/real server is running.")
+
+        # TODO: Show results from redfish
+
+        if "redfish_bios" in st.session_state:
+            result = st.session_state.redfish_bios
+            st.caption(f"IP: {result['bmc_ip']}:{result['port']}")
+
+            ## Preview 
+            st.write("**Preview Redfish BIOS Data**")
+            groups = get_redfish_groups(result["attributes"])
+            for title, count in groups.items():
+                st.write(f"- **{title}** — **{count}** settings")
+
+            ## Full raw JSON
+            with st.expander("📄 View Full Raw Redfish JSON", expanded=False):
+                st.json(result["raw"])
+
+            ##  Download / clean
+
+            col_dl, col_clear = st.columns(2)
+
+            with col_dl:
+                st.download_button(
+                    "⬇️ Download redfish_bios.json",
+                    data=json.dumps(result["raw"], indent=2),
+                    file_name="redfish_bios.json",
+                    mime="application/json",
+                    use_container_width=True
+                )
+            with col_clear:
+                if st.button("🗑️ Clear Redfish Data", use_container_width=True):
+                    st.session_state.pop("redfish_bios", None)
+                    st.rerun()
 
     

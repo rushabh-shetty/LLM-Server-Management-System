@@ -4,6 +4,8 @@ import subprocess
 import streamlit as st
 import re
 from pathlib import Path
+import requests
+from requests.auth import HTTPBasicAuth
 
 @st.cache_data(ttl="10min", show_spinner=False)
 def load_sections():
@@ -290,3 +292,91 @@ def get_bios_context(sections):
                     bios_data[title] = subs
                     break
     return bios_data
+
+def get_redfish_bios( bmc_ip, port = 8000, use_https = False, username = "ADMIN", password = "ADMIN"):
+
+    # Fetch full BIOS data from a Redfish BMC. Returns dict or None on error.
+
+    protocol = "https" if use_https else "http"
+    base_url = f"{protocol}://{bmc_ip}:{port}"
+
+    try:
+
+        # TODO: Use the real System ID
+
+        ## Get the Systems collection to discover the real System ID
+
+        systems_url = f"{base_url}/redfish/v1/Systems"
+        auth = HTTPBasicAuth(username, password) if username and password else None
+
+        systems_resp = requests.get(
+            systems_url, auth=auth, verify=False, timeout=8
+        )
+        systems_resp.raise_for_status()
+        systems_data = systems_resp.json()
+
+        ## Take the first system
+
+        members = systems_data.get("Members", [])
+        if not members:
+            st.error("No systems found in Redfish service.")
+            return None
+
+        system_id_url = members[0]["@odata.id"]   # e.g. /redfish/v1/Systems/437XR1138R2
+        bios_url = f"{base_url}{system_id_url}/Bios"   # NO trailing slash
+
+        # TODO: Get the BIOS settings
+        
+        bios_resp = requests.get(
+            bios_url, auth=auth, verify=False, timeout=8
+        )
+        bios_resp.raise_for_status()
+        data = bios_resp.json()
+
+        attributes = data.get("Attributes", {})
+        if not attributes:
+            st.error("BIOS Attributes section is empty in the response.")
+            return None
+
+        return {
+            "raw": data,
+            "attributes": attributes,
+            "total_settings": len(attributes),
+            "bmc_ip": bmc_ip,
+            "port": port,
+            "system_id": system_id_url.split("/")[-1]
+        }
+
+    except requests.exceptions.HTTPError as e:
+        st.error(f"Redfish connection failed: {e.response.status_code} {e.response.reason}")
+        st.caption(f"URL tried: {bios_url if 'bios_url' in locals() else systems_url}")
+        return None
+    except Exception as e:
+        st.error(f"Redfish connection failed: {str(e)}")
+        return None
+
+
+def get_redfish_groups(attributes):
+
+    groups = {}
+
+    for key in attributes.keys():
+        # Grouping based on common BIOS naming
+        if any(x in key.lower() for x in ["cstate", "turbo", "hyper", "proc", "cpu"]):
+            group = "Advanced → CPU Configuration"
+        elif any(x in key.lower() for x in ["pcie", "aspm", "sr-iov", "sriov", "link"]):
+            group = "Advanced → PCI Subsystem"
+        elif any(x in key.lower() for x in ["power", "energy", "performance", "bias"]):
+            group = "Power & Performance"
+        elif any(x in key.lower() for x in ["memory", "numa", "dimm"]):
+            group = "Chipset → Memory / NUMA"
+        elif any(x in key.lower() for x in ["boot"]):
+            group = "Boot Options"
+        elif any(x in key.lower() for x in ["security", "password", "tpm"]):
+            group = "Security"
+        else:
+            group = "Other Settings"
+
+        groups[group] = groups.get(group, 0) + 1
+
+    return dict(sorted(groups.items(), key=lambda x: -x[1])) # return sorted
