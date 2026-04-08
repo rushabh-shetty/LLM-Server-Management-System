@@ -3,7 +3,7 @@ import os
 from datetime import datetime
 import pandas as pd
 
-from data import get_available_hft_profiles, detect_build_system, build_system_profile
+from data import get_available_hft_profiles, detect_build_system, build_system_profile, get_redfish_groups
 from ai import perform_hft_analysis, perform_compiler_analysis, render_ai_chat, perform_application_code_analysis, perform_bios_analysis
 
 @st.fragment
@@ -190,10 +190,38 @@ def render_bios():
     st.subheader("BIOS Optimizer")
     st.markdown("Review and optimize firmware settings for ultra-low latency HFT.")
 
-    # TODO: Profile Selector
+    # TODO: Local profile Selector
 
     profiles = get_available_hft_profiles()
     selected_profile = st.selectbox("Select HFT Profile", profiles, index=0, key="bios_profile")
+
+    # TODO: Redfish profile Selector
+
+    redfish_data = st.session_state.get("redfish_bios")
+    if redfish_data:
+        st.caption(f"✅ Redfish BIOS data ready ({redfish_data['total_settings']} settings from {redfish_data['bmc_ip']}:{redfish_data['port']})")
+
+        include_redfish = st.checkbox(
+            "Include Redfish BMC BIOS data in AI analysis",
+            value=False,
+            key="bios_include_redfish"
+        )
+
+        if include_redfish:
+            groups_dict = get_redfish_groups(redfish_data["attributes"]) # Use existing grouping function
+            available_groups = list(groups_dict.keys())
+
+            selected_groups = st.multiselect(
+                "Redfish Groups to Include",
+                options=available_groups,
+                default=available_groups,
+                key="bios_redfish_groups"
+            )
+            st.session_state.bios_selected_redfish_groups = selected_groups
+        else:
+            st.session_state.pop("bios_selected_redfish_groups", None)
+    else:
+        st.info("Want richer BIOS data? Go to the **Data** tab → enable Redfish BMC BIOS Collection")
 
     # TODO: Call AI
 

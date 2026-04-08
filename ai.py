@@ -6,7 +6,7 @@ import re
 from datetime import datetime
 from litellm import completion
 
-from data import load_sections, load_dynamic_df, build_system_profile, take_ai_snapshot, build_full_raw_text, get_bios_context
+from data import load_sections, load_dynamic_df, build_system_profile, take_ai_snapshot, build_full_raw_text, get_bios_context, get_redfish_groups
 
 # TODO: Generic AI calls
 
@@ -427,7 +427,7 @@ def perform_hft_analysis(selected_profile):
 
 # TODO: BIOS performance analysis
 
-def perform_bios_analysis(selected_profile: str):
+def perform_bios_analysis(selected_profile):
     
     if "sections" not in st.session_state:
         st.info("Run Data tab first")
@@ -450,6 +450,23 @@ def perform_bios_analysis(selected_profile: str):
     bios_text = json.dumps({k: {sub: v["output"][:500] for sub, v in subs.items()} 
                            for k, subs in list(bios_ctx.items())[:6]}, indent=2)
 
+    # TODO: Profile Redfish context 
+
+    redfish_ctx = "None — user did not enable Redfish data"
+    if st.session_state.get("bios_include_redfish") and st.session_state.get("bios_selected_redfish_groups"):
+        redfish_data = st.session_state.get("redfish_bios")
+        if redfish_data:
+            selected_groups = st.session_state.bios_selected_redfish_groups
+            grouped_attrs = get_redfish_groups(redfish_data["attributes"], return_attributes=True)
+            
+            lines = []
+            for group in selected_groups:
+                if group in grouped_attrs:
+                    lines.append(f"{group}:")
+                    for key, value in grouped_attrs[group].items():
+                        lines.append(f"  - {key}: {value}")
+            redfish_ctx = "\n".join(lines) if lines else "No matching settings"
+
     context = {
         "short_summary": full_hardware_summary,
         "selected_profile": selected_profile,
@@ -465,7 +482,8 @@ def perform_bios_analysis(selected_profile: str):
         st.markdown(f"**Selected Profile:** {selected_profile}")
         st.markdown("**Detailed sections for this profile**")
         st.code(full_profile_data.strip() or "No sections", language=None)
-        st.markdown("**BIOS & Firmware Data**")
+        
+        st.markdown("**Local BIOS & Firmware Data**")
         if bios_ctx:
             preview_df = []
             for title, subs in bios_ctx.items():
@@ -475,7 +493,10 @@ def perform_bios_analysis(selected_profile: str):
             st.dataframe(pd.DataFrame(preview_df), use_container_width=True, hide_index=True)
         else:
             st.code(bios_text, language="json")
-    
+
+        st.markdown("**Redfish BMC Data**")
+        st.code(f"BIOS: {redfish_ctx}", language=None)
+
     # TODO: Run Button + AI Call
 
     if st.button("🚀 Run BIOS Analysis", type="primary", use_container_width=True):
@@ -489,8 +510,17 @@ def perform_bios_analysis(selected_profile: str):
         DETAILED PROFILE SECTIONS:
         {full_profile_data}
 
-        CURRENT BIOS/FIRMWARE SETTINGS:
-        {bios_text}
+        CURRENT BIOS/FIRMWARE SETTINGS (LOCAL — from dmidecode/cpupower/lspci running on the OS):
+
+        {bios_text or "None"}
+
+        REDFISH BMC DATA:
+        BIOS: {redfish_ctx}
+
+        IMPORTANT:
+        - Local data comes directly from the operating system.
+        - Redfish data comes from the BMC (usually more accurate/up-to-date for firmware settings).
+        - If the same setting appears in both sources and they differ, note the discrepancy and clearly state which value you recommend trusting (usually prefer Redfish).
 
         YOU MUST output **EXACTLY** this JSON and nothing else:
 

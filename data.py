@@ -356,27 +356,39 @@ def get_redfish_bios( bmc_ip, port = 8000, use_https = False, username = "ADMIN"
         return None
 
 
-def get_redfish_groups(attributes):
+def get_redfish_groups(attributes, return_attributes=False):
+\
+    if return_attributes:
+        groups = {}
+    else:
+        groups = {}
 
-    groups = {}
+    for key, value in attributes.items():
+        key_lower = key.lower()
 
-    for key in attributes.keys():
-        # Grouping based on common BIOS naming
-        if any(x in key.lower() for x in ["cstate", "turbo", "hyper", "proc", "cpu"]):
+        if any(x in key_lower for x in ["cstate", "turbo", "hyper", "proc", "cpu"]):
             group = "Advanced → CPU Configuration"
-        elif any(x in key.lower() for x in ["pcie", "aspm", "sr-iov", "sriov", "link"]):
+        elif any(x in key_lower for x in ["pcie", "aspm", "sr-iov", "sriov", "link"]):
             group = "Advanced → PCI Subsystem"
-        elif any(x in key.lower() for x in ["power", "energy", "performance", "bias"]):
+        elif any(x in key_lower for x in ["power", "energy", "performance", "bias"]):
             group = "Power & Performance"
-        elif any(x in key.lower() for x in ["memory", "numa", "dimm"]):
+        elif any(x in key_lower for x in ["memory", "numa", "dimm"]):
             group = "Chipset → Memory / NUMA"
-        elif any(x in key.lower() for x in ["boot"]):
+        elif any(x in key_lower for x in ["boot"]):
             group = "Boot Options"
-        elif any(x in key.lower() for x in ["security", "password", "tpm"]):
+        elif any(x in key_lower for x in ["security", "password", "tpm"]):
             group = "Security"
         else:
             group = "Other Settings"
 
-        groups[group] = groups.get(group, 0) + 1
+        if return_attributes:
+            if group not in groups:
+                groups[group] = {}
+            groups[group][key] = value
+        else:
+            groups[group] = groups.get(group, 0) + 1
 
-    return dict(sorted(groups.items(), key=lambda x: -x[1])) # return sorted
+    if return_attributes:
+        return groups  # {group: {key: value, ...}}
+    else:
+        return dict(sorted(groups.items(), key=lambda x: -x[1]))  # counts, sorted
