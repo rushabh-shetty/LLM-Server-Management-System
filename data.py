@@ -268,8 +268,6 @@ def detect_build_system(project_path):
                 except:
                     pass
 
-    result["hot_paths"] = result["hot_paths"][:12]  # limit for UI
-
     return result
 
 def get_bios_context(sections):

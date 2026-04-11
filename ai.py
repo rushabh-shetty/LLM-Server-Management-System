@@ -447,8 +447,10 @@ def perform_bios_analysis(selected_profile):
 
     full_profile_data = build_full_raw_text(profile_sections)
     bios_ctx = get_bios_context(all_sections)
-    bios_text = json.dumps({k: {sub: v["output"][:500] for sub, v in subs.items()} 
-                           for k, subs in list(bios_ctx.items())[:6]}, indent=2)
+    bios_text = json.dumps({
+        k: {sub: v["output"] for sub, v in subs.items()}
+        for k, subs in bios_ctx.items()
+    }, indent=2)
 
     # TODO: Profile Redfish context
 
