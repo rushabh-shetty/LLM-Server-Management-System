@@ -293,71 +293,40 @@ def get_bios_context(sections):
                     break
     return bios_data
 
-def get_redfish_bios( bmc_ip, port = 8000, use_https = False, username = "ADMIN", password = "ADMIN"):
+def get_redfish_bios(bmc_ip, port=8000, use_https=False, username="ADMIN", password="ADMIN"):
+    
+    # Just call the general endpoint with the BIOS path
 
-    # Fetch full BIOS data from a Redfish BMC. Returns dict or None on error.
+    data = fetch_redfish_endpoint(
+        bmc_ip=bmc_ip,
+        port=port,
+        use_https=use_https,
+        username=username,
+        password=password,
+        endpoint="/redfish/v1/Systems/1/Bios" 
+    )
 
-    protocol = "https" if use_https else "http"
-    base_url = f"{protocol}://{bmc_ip}:{port}"
-
-    try:
-
-        # TODO: Use the real System ID
-
-        ## Get the Systems collection to discover the real System ID
-
-        systems_url = f"{base_url}/redfish/v1/Systems"
-        auth = HTTPBasicAuth(username, password) if username and password else None
-
-        systems_resp = requests.get(
-            systems_url, auth=auth, verify=False, timeout=8
-        )
-        systems_resp.raise_for_status()
-        systems_data = systems_resp.json()
-
-        ## Take the first system
-
-        members = systems_data.get("Members", [])
-        if not members:
-            st.error("No systems found in Redfish service.")
-            return None
-
-        system_id_url = members[0]["@odata.id"]   # e.g. /redfish/v1/Systems/437XR1138R2
-        bios_url = f"{base_url}{system_id_url}/Bios"   # NO trailing slash
-
-        # TODO: Get the BIOS settings
-        
-        bios_resp = requests.get(
-            bios_url, auth=auth, verify=False, timeout=8
-        )
-        bios_resp.raise_for_status()
-        data = bios_resp.json()
-
-        attributes = data.get("Attributes", {})
-        if not attributes:
-            st.error("BIOS Attributes section is empty in the response.")
-            return None
-
-        return {
-            "raw": data,
-            "attributes": attributes,
-            "total_settings": len(attributes),
-            "bmc_ip": bmc_ip,
-            "port": port,
-            "system_id": system_id_url.split("/")[-1]
-        }
-
-    except requests.exceptions.HTTPError as e:
-        st.error(f"Redfish connection failed: {e.response.status_code} {e.response.reason}")
-        st.caption(f"URL tried: {bios_url if 'bios_url' in locals() else systems_url}")
+    if not data:
         return None
-    except Exception as e:
-        st.error(f"Redfish connection failed: {str(e)}")
+
+    attributes = data.get("Attributes", {})
+    if not attributes:
+        st.error("BIOS Attributes section is empty in the response.")
         return None
+
+    return {
+        "raw": data,
+        "attributes": attributes,
+        "total_settings": len(attributes),
+        "bmc_ip": bmc_ip,
+        "port": port,
+        "system_id": data.get("@odata.id", "").split("/")[-2] if "/Bios" in data.get("@odata.id", "") else "unknown",
+        "endpoint": "/redfish/v1/Systems/*/Bios"
+    }
 
 
 def get_redfish_groups(attributes, return_attributes=False):
-\
+
     if return_attributes:
         groups = {}
     else:
@@ -392,3 +361,114 @@ def get_redfish_groups(attributes, return_attributes=False):
         return groups  # {group: {key: value, ...}}
     else:
         return dict(sorted(groups.items(), key=lambda x: -x[1]))  # counts, sorted
+
+def fetch_redfish_endpoint(bmc_ip, port=8000, use_https=False, username="ADMIN", password="ADMIN", endpoint="/redfish/v1/Systems/1/Bios"):
+
+    protocol = "https" if use_https else "http"
+    base_url = f"{protocol}://{bmc_ip}:{port}"
+    auth = HTTPBasicAuth(username, password) if username and password else None
+
+    try:
+        # Discover real System ID
+
+        if "/Systems/" in endpoint or endpoint.startswith("/redfish/v1/Systems"):
+            systems_url = f"{base_url}/redfish/v1/Systems"
+            systems_resp = requests.get(systems_url, auth=auth, verify=False, timeout=8)
+            systems_resp.raise_for_status()
+            members = systems_resp.json().get("Members", [])
+            if members:
+                system_id_url = members[0]["@odata.id"]   # e.g. /redfish/v1/Systems/437XR1138R2
+                # Replace any "/Systems/1/" with the real ID
+                endpoint = endpoint.replace("/Systems/1/", f"{system_id_url}/")
+
+        # Discover real Chassis ID
+
+        if "/Chassis/" in endpoint:
+            chassis_url = f"{base_url}/redfish/v1/Chassis"
+            chassis_resp = requests.get(chassis_url, auth=auth, verify=False, timeout=8)
+            chassis_resp.raise_for_status()
+            members = chassis_resp.json().get("Members", [])
+            if members:
+                chassis_id_url = members[0]["@odata.id"]
+                endpoint = endpoint.replace("/Chassis/1/", f"{chassis_id_url}/")
+
+        full_url = f"{base_url}{endpoint}"
+        resp = requests.get(full_url, auth=auth, verify=False, timeout=8)
+        resp.raise_for_status()
+        return resp.json()
+
+    except Exception as e:
+        st.error(f"Redfish endpoint {endpoint} failed: {str(e)}")
+        return None
+
+
+def collect_redfish_sections(bmc_ip, port, use_https, username, password, selected_sections, custom_endpoints = None):
+    
+    # Main function called from the Data tab. Returns a dict with all collected data
+
+     #TODO: Pre-defined endpoints
+
+    result = {}
+    custom_endpoints = custom_endpoints or []
+
+    for section in selected_sections:
+        if section == "BIOS":
+
+            # Reusing get_redfish_bios
+
+            bios_data = get_redfish_bios(bmc_ip, port, use_https, username, password)
+            if bios_data:
+                result["BIOS"] = bios_data
+                result["BIOS"]["endpoint"] = "/redfish/v1/Systems/*/Bios"
+
+        elif section == "Processors":
+            data = fetch_redfish_endpoint(bmc_ip, port, use_https, username, password, "/redfish/v1/Systems/1/Processors")
+            if data:
+                result["Processors"] = {"raw": data, "item_count": len(data.get("Members", [])), "endpoint": "/redfish/v1/Systems/1/Processors"}
+
+        elif section == "Memory":
+            data = fetch_redfish_endpoint(bmc_ip, port, use_https, username, password, "/redfish/v1/Systems/1/Memory")
+            if data:
+                result["Memory"] = {"raw": data, "item_count": len(data.get("Members", [])), "endpoint": "/redfish/v1/Systems/1/Memory"}
+
+        elif section == "PCIeSlots":
+            data = fetch_redfish_endpoint(bmc_ip, port, use_https, username, password, "/redfish/v1/Chassis/1/PCIeSlots")
+            if data:
+                result["PCIeSlots"] = {"raw": data, "item_count": len(data.get("Members", [])), "endpoint": "/redfish/v1/Chassis/1/PCIeSlots"}
+
+        elif section == "Thermal":
+            data = fetch_redfish_endpoint(bmc_ip, port, use_https, username, password, "/redfish/v1/Chassis/1/ThermalSubsystem")
+            if data:
+                result["Thermal"] = {"raw": data, "item_count": len(data.get("Temperatures", [])), "endpoint": "/redfish/v1/Chassis/1/ThermalSubsystem"}
+
+        elif section == "Power":
+            data = fetch_redfish_endpoint(bmc_ip, port, use_https, username, password, "/redfish/v1/Chassis/1/Power")
+            if data:
+                result["Power"] = {"raw": data, "item_count": len(data.get("PowerSupplies", [])), "endpoint": "/redfish/v1/Chassis/1/Power"}
+
+        elif section == "FirmwareInventory":
+            data = fetch_redfish_endpoint(bmc_ip, port, use_https, username, password, "/redfish/v1/UpdateService/FirmwareInventory")
+            if data:
+                result["FirmwareInventory"] = {"raw": data, "item_count": len(data.get("Members", [])), "endpoint": "/redfish/v1/UpdateService/FirmwareInventory"}
+
+        elif section == "ChassisSensors":
+            data = fetch_redfish_endpoint(bmc_ip, port, use_https, username, password, "/redfish/v1/Chassis/1")
+            if data:
+                result["ChassisSensors"] = {"raw": data, "item_count": 0, "endpoint": "/redfish/v1/Chassis/1"}
+
+    # TODO: Add any custom endpoints the user typed
+
+    for ep in custom_endpoints:
+        if ep.strip():
+            data = fetch_redfish_endpoint(bmc_ip, port, use_https, username, password, ep.strip())
+            if data:
+                key = ep.strip().strip("/").replace("/", "_").replace(":", "")
+                count = 0
+                if isinstance(data, dict):
+                    if "Members" in data and isinstance(data["Members"], list):
+                        count = len(data["Members"])
+                    elif "Members@odata.count" in data:
+                        count = data["Members@odata.count"]
+                result[key] = {"raw": data, "item_count": count, "endpoint": ep.strip()}
+
+    return result if result else None

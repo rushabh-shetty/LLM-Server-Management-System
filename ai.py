@@ -450,12 +450,18 @@ def perform_bios_analysis(selected_profile):
     bios_text = json.dumps({k: {sub: v["output"][:500] for sub, v in subs.items()} 
                            for k, subs in list(bios_ctx.items())[:6]}, indent=2)
 
-    # TODO: Profile Redfish context 
+    # TODO: Profile Redfish context
 
     redfish_ctx = "None — user did not enable Redfish data"
-    if st.session_state.get("bios_include_redfish") and st.session_state.get("bios_selected_redfish_groups"):
-        redfish_data = st.session_state.get("redfish_bios")
-        if redfish_data:
+
+    if ("redfish_data" in st.session_state and 
+        "BIOS" in st.session_state.redfish_data and
+        st.session_state.get("bios_include_redfish") and 
+        st.session_state.get("bios_selected_redfish_groups")):
+        
+        redfish_data = st.session_state.redfish_data["BIOS"]
+        
+        if "attributes" in redfish_data:
             selected_groups = st.session_state.bios_selected_redfish_groups
             grouped_attrs = get_redfish_groups(redfish_data["attributes"], return_attributes=True)
             

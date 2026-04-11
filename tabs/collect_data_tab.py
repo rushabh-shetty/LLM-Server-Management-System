@@ -3,7 +3,7 @@ import subprocess
 import time
 from collections import OrderedDict
 import io
-from data import load_sections, get_default_interface, get_redfish_bios, get_redfish_groups
+from data import load_sections, get_default_interface, collect_redfish_sections, get_redfish_groups
 import os
 import json
 
@@ -175,15 +175,15 @@ def render_collect_data_tab():
     # TODO: Redfish Section
 
     st.divider()
-    st.subheader("Redfish BMC BIOS Collection (Optional - Supermicro)")
+    st.subheader("Redfish BMC Collection (Supermicro / compatible)")
 
     if "redfish_enabled" not in st.session_state:
         st.session_state.redfish_enabled = False
 
     st.session_state.redfish_enabled = st.checkbox(
-        "Enable Redfish BIOS query",
+        "Enable Redfish BMC query",
         value=st.session_state.redfish_enabled,
-        help="Fetch complete BIOS settings directly from the BMC"
+        help="Fetch hardware data directly from the BMC"
     )
 
     if st.session_state.redfish_enabled:
@@ -191,55 +191,111 @@ def render_collect_data_tab():
         col1, col2 = st.columns([3, 1])
 
         with col1:
-            bmc_ip = st.text_input("BMC IP / Hostname", value="127.0.0.1", key="redfish_ip")
-            port = st.number_input("Port", value=8000, min_value=1, max_value=65535, key="redfish_port")
-            use_https = st.checkbox("Use HTTPS", value=False, key="redfish_https")
+
+            bmc_ip = st.text_input("BMC IP / Hostname", value=st.session_state.get("redfish_config", {}).get("bmc_ip", "127.0.0.1"), key="redfish_ip")
+            port = st.number_input("Port", value=st.session_state.get("redfish_config", {}).get("port", 8000), min_value=1, max_value=65535, key="redfish_port")
+            use_https = st.checkbox("Use HTTPS", value=st.session_state.get("redfish_config", {}).get("use_https", False), key="redfish_https")
 
         with col2:
-            username = st.text_input("Username", value="ADMIN", key="redfish_user")
-            password = st.text_input("Password", value="ADMIN", type="password", key="redfish_pass")
 
-        if st.button("Collect Redfish BIOS Data", type="primary"):
-            with st.spinner("Connecting to Redfish BMC..."):
-                result = get_redfish_bios(bmc_ip, port, use_https, username, password)
-                if result:
-                    st.session_state.redfish_bios = result
-                    st.success(f"✅ Successfully loaded **{result['total_settings']}** BIOS settings from Redfish BMC")
+            username = st.text_input("Username", value=st.session_state.get("redfish_config", {}).get("username", "ADMIN"), key="redfish_user")
+            password = st.text_input("Password", value=st.session_state.get("redfish_config", {}).get("password", "ADMIN"), type="password", key="redfish_pass")
+
+        # TODO: Checkbox - Select Endpoints 
+
+        st.markdown("### Redfish Sections to Collect")
+        st.caption("BIOS is recommended. Others are optional.")
+
+        sections_options = {
+            "BIOS": True,
+            "Processors": True,
+            "Memory": True,
+            "PCIeSlots": True,
+            "Thermal": False,
+            "Power": False,
+            "FirmwareInventory": False,
+            "ChassisSensors": False,
+        }
+
+        selected = {}
+        for name, default in sections_options.items():
+            selected[name] = st.checkbox(name, value=default, key=f"redfish_{name}")
+
+        ## Custom endpoints
+
+        custom_endpoints = st.text_area(
+            "Advanced — Custom endpoints (one full path per line)",
+            value="",
+            placeholder="/redfish/v1/Systems/1/Processors\n/redfish/v1/Chassis/1/ThermalSubsystem",
+            help="Example: /redfish/v1/Systems/1/Processors",
+            key="redfish_custom"
+        ).strip().splitlines()
+
+        if st.button("Collect Redfish Data", type="primary"):
+            with st.spinner("Connecting to BMC..."):
+
+                # Save config for future use
+
+                st.session_state.redfish_config = {
+                    "bmc_ip": bmc_ip,
+                    "port": port,
+                    "use_https": use_https,
+                    "username": username,
+                    "password": password
+                }
+
+                selected_list = [k for k, v in selected.items() if v]
+                data = collect_redfish_sections(
+                    bmc_ip, port, use_https, username, password,
+                    selected_list, custom_endpoints
+                )
+
+                if data:
+                    st.session_state.redfish_data = data
+                    st.success(f"✅ Collected {len(data)} Redfish sections!")
                     st.rerun()
                 else:
-                    st.error("Failed to fetch Redfish data — check IP/port and that the mock/real server is running.")
+                    st.error("Failed to fetch any data — check IP/credentials.")
 
         # TODO: Show results from redfish
 
-        if "redfish_bios" in st.session_state:
-            result = st.session_state.redfish_bios
-            st.caption(f"IP: {result['bmc_ip']}:{result['port']}")
+        if "redfish_data" in st.session_state:
+            st.caption(f"IP: {st.session_state.redfish_config.get('bmc_ip')}:{st.session_state.redfish_config.get('port')}")
 
-            ## Preview 
-            st.write("**Preview Redfish BIOS Data**")
-            groups = get_redfish_groups(result["attributes"])
-            for title, count in groups.items():
-                st.write(f"- **{title}** — **{count}** settings")
+            for section_name, section_data in st.session_state.redfish_data.items():
+                if section_name == "BIOS":
+                    count = section_data.get("total_settings", "—")
+                    title = f"**{section_name}** — {count} settings"
+                else:
+                    count = section_data.get("item_count", "—")
+                    title = f"**{section_name}** — {count} items"
 
-            ## Full raw JSON
-            with st.expander("📄 View Full Raw Redfish JSON", expanded=False):
-                st.json(result["raw"])
+                with st.expander(title, expanded=section_name == "BIOS"):
+                    if section_name == "BIOS" and "attributes" in section_data:
+                        groups = get_redfish_groups(section_data["attributes"])
+                        for title, count in groups.items():
+                            st.write(f"- **{title}** — **{count}** settings")
+                    else:
+                        st.write(f"Endpoint: `{section_data.get('endpoint', '—')}`")
+                        st.write(f"Items: `{section_data.get('item_count', 0)}`")
 
-            ##  Download / clean
+                    with st.expander("📄 Raw JSON (click to expand)", expanded=False):
+                        st.json(section_data.get("raw", section_data), expanded=True)
 
+            # Download + Clear
             col_dl, col_clear = st.columns(2)
-
             with col_dl:
                 st.download_button(
-                    "⬇️ Download redfish_bios.json",
-                    data=json.dumps(result["raw"], indent=2),
-                    file_name="redfish_bios.json",
+                    "⬇️ Download full_redfish_data.json",
+                    data=json.dumps(st.session_state.redfish_data, indent=2),
+                    file_name="full_redfish_data.json",
                     mime="application/json",
                     use_container_width=True
                 )
             with col_clear:
-                if st.button("🗑️ Clear Redfish Data", use_container_width=True):
-                    st.session_state.pop("redfish_bios", None)
+                if st.button("🗑️ Clear All Redfish Data", use_container_width=True):
+                    st.session_state.pop("redfish_data", None)
+                    st.session_state.pop("redfish_config", None)
                     st.rerun()
 
     

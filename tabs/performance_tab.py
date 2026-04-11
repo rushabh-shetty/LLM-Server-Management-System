@@ -195,32 +195,34 @@ def render_bios():
     profiles = get_available_hft_profiles()
     selected_profile = st.selectbox("Select HFT Profile", profiles, index=0, key="bios_profile")
 
-    # TODO: Redfish profile Selector
+    # TODO: Redfish profile Selector 
+    
+    redfish_data = None
+    if "redfish_data" in st.session_state and "BIOS" in st.session_state.redfish_data:
+        redfish_data = st.session_state.redfish_data["BIOS"]
+        st.caption(f"✅ Redfish BIOS data ready ({redfish_data.get('total_settings', 0)} settings from {st.session_state.redfish_config.get('bmc_ip', '—')}:{st.session_state.redfish_config.get('port', '—')})")
 
-    redfish_data = st.session_state.get("redfish_bios")
-    if redfish_data:
-        st.caption(f"✅ Redfish BIOS data ready ({redfish_data['total_settings']} settings from {redfish_data['bmc_ip']}:{redfish_data['port']})")
+    include_redfish = st.checkbox(
+        "Include Redfish BMC BIOS data in AI analysis",
+        value=False,
+        key="bios_include_redfish"
+    )
 
-        include_redfish = st.checkbox(
-            "Include Redfish BMC BIOS data in AI analysis",
-            value=False,
-            key="bios_include_redfish"
+    if include_redfish and redfish_data and "attributes" in redfish_data:
+        groups_dict = get_redfish_groups(redfish_data["attributes"])
+        available_groups = list(groups_dict.keys())
+
+        selected_groups = st.multiselect(
+            "Redfish Groups to Include",
+            options=available_groups,
+            default=available_groups,
+            key="bios_redfish_groups"
         )
-
-        if include_redfish:
-            groups_dict = get_redfish_groups(redfish_data["attributes"]) # Use existing grouping function
-            available_groups = list(groups_dict.keys())
-
-            selected_groups = st.multiselect(
-                "Redfish Groups to Include",
-                options=available_groups,
-                default=available_groups,
-                key="bios_redfish_groups"
-            )
-            st.session_state.bios_selected_redfish_groups = selected_groups
-        else:
-            st.session_state.pop("bios_selected_redfish_groups", None)
+        st.session_state.bios_selected_redfish_groups = selected_groups
     else:
+        st.session_state.pop("bios_selected_redfish_groups", None)
+
+    if not redfish_data:
         st.info("Want richer BIOS data? Go to the **Data** tab → enable Redfish BMC BIOS Collection")
 
     # TODO: Call AI
