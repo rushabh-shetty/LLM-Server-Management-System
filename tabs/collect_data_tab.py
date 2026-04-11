@@ -3,7 +3,7 @@ import subprocess
 import time
 from collections import OrderedDict
 import io
-from data import load_sections, get_default_interface, collect_redfish_sections, get_redfish_groups
+from data import load_sections, get_default_interface, collect_redfish_sections, get_redfish_groups, test_redfish_connection
 import os
 import json
 
@@ -179,6 +179,8 @@ def render_collect_data_tab():
 
     if "redfish_enabled" not in st.session_state:
         st.session_state.redfish_enabled = False
+    if "redfish_connection_status" not in st.session_state:
+        st.session_state.redfish_connection_status = None
 
     st.session_state.redfish_enabled = st.checkbox(
         "Enable Redfish BMC query",
@@ -186,7 +188,11 @@ def render_collect_data_tab():
         help="Fetch hardware data directly from the BMC"
     )
 
+    # TODO: Test Connection
+
     if st.session_state.redfish_enabled:
+
+        st.markdown("#### Test Connection")
 
         col1, col2 = st.columns([3, 1])
 
@@ -203,59 +209,81 @@ def render_collect_data_tab():
 
         # TODO: Checkbox - Select Endpoints 
 
-        st.markdown("### Redfish Sections to Collect")
-        st.caption("BIOS is recommended. Others are optional.")
-
-        sections_options = {
-            "BIOS": True,
-            "Processors": True,
-            "Memory": True,
-            "PCIeSlots": True,
-            "Thermal": False,
-            "Power": False,
-            "FirmwareInventory": False,
-            "ChassisSensors": False,
+        current_config = {
+            "bmc_ip": bmc_ip, "port": port, "use_https": use_https,
+            "username": username, "password": password
         }
+        saved_config = st.session_state.get("redfish_config", {})
+        settings_changed = bool(saved_config) and current_config != saved_config
 
-        selected = {}
-        for name, default in sections_options.items():
-            selected[name] = st.checkbox(name, value=default, key=f"redfish_{name}")
+        if settings_changed:
+            st.warning("⚠️ Connection settings changed. Please test the new connection.")
 
-        ## Custom endpoints
+        ## Botton - Test Connection 
 
-        custom_endpoints = st.text_area(
-            "Advanced — Custom endpoints (one full path per line)",
-            value="",
-            placeholder="/redfish/v1/Systems/1/Processors\n/redfish/v1/Chassis/1/ThermalSubsystem",
-            help="Example: /redfish/v1/Systems/1/Processors",
-            key="redfish_custom"
-        ).strip().splitlines()
+        if st.button("Test BMC Connection", type="primary", use_container_width=False):
+            with st.spinner("Testing connection..."):
+                status = test_redfish_connection(bmc_ip, port, use_https, username, password)
+                st.session_state.redfish_connection_status = status
+                st.rerun()
 
-        if st.button("Collect Redfish Data", type="primary"):
-            with st.spinner("Connecting to BMC..."):
+        ## Show test result (persistent until next test)
 
-                # Save config for future use
+        if st.session_state.get("redfish_connection_status"):
+            status = st.session_state.redfish_connection_status
+            if status["success"]:
+                st.success(f"✅ Connected to {status['manufacturer']} {status['model']} — Firmware {status['firmware']}")
+            else:
+                st.error(status["message"])
 
-                st.session_state.redfish_config = {
-                    "bmc_ip": bmc_ip,
-                    "port": port,
-                    "use_https": use_https,
-                    "username": username,
-                    "password": password
-                }
+        # TODO: Collect Info
 
-                selected_list = [k for k, v in selected.items() if v]
-                data = collect_redfish_sections(
-                    bmc_ip, port, use_https, username, password,
-                    selected_list, custom_endpoints
-                )
+        test_ok = (st.session_state.redfish_connection_status is not None and 
+                   st.session_state.redfish_connection_status.get("success", False))
 
-                if data:
-                    st.session_state.redfish_data = data
-                    st.success(f"✅ Collected {len(data)} Redfish sections!")
-                    st.rerun()
-                else:
-                    st.error("Failed to fetch any data — check IP/credentials.")
+        if test_ok:
+            st.markdown("#### Collect Information")
+            st.caption("BIOS is strongly recommended. Others are optional.")
+
+            # TODO: Checkbox - Select Endpoints
+
+            sections_options = {
+                "BIOS": True,
+                "Processors": True,
+                "Memory": True,
+                "PCIeSlots": True,
+                "Thermal": False,
+                "Power": False,
+                "FirmwareInventory": False,
+                "ChassisSensors": False,
+            }
+
+            selected = {}
+            for name, default in sections_options.items():
+                selected[name] = st.checkbox(name, value=default, key=f"redfish_{name}")
+
+            custom_endpoints = st.text_area(
+                "Advanced — Custom endpoints (one full path per line)",
+                value="",
+                placeholder="/redfish/v1/Systems/1/Processors\n/redfish/v1/Chassis/1/ThermalSubsystem",
+                help="Example: /redfish/v1/Systems/1/Processors",
+                key="redfish_custom"
+            ).strip().splitlines()
+
+            if st.button("Collect Redfish Information ", type="primary", use_container_width=False):
+                with st.spinner("Collecting data from BMC..."):
+                    st.session_state.redfish_config = current_config
+                    selected_list = [k for k, v in selected.items() if v]
+                    data = collect_redfish_sections(
+                        bmc_ip, port, use_https, username, password,
+                        selected_list, custom_endpoints
+                    )
+                    if data:
+                        st.session_state.redfish_data = data
+                        st.success(f"✅ Collected {len(data)} Redfish sections!")
+                        st.rerun()
+                    else:
+                        st.error("Failed to fetch any data — check IP/credentials.")
 
         # TODO: Show results from redfish
 
@@ -270,19 +298,25 @@ def render_collect_data_tab():
                     count = section_data.get("item_count", "—")
                     title = f"**{section_name}** — {count} items"
 
-                with st.expander(title, expanded=section_name == "BIOS"):
-                    if section_name == "BIOS" and "attributes" in section_data:
-                        groups = get_redfish_groups(section_data["attributes"])
-                        for title, count in groups.items():
-                            st.write(f"- **{title}** — **{count}** settings")
+                with st.expander(title, expanded=True):
+                    st.write(f"Endpoint: `{section_data.get('endpoint', '—')}`")
+
+                    if section_data.get("success", True):
+                        if section_name == "BIOS" and "attributes" in section_data:
+                            groups = get_redfish_groups(section_data["attributes"])
+                            for title, count in groups.items():
+                                st.write(f"- **{title}** — **{count}** settings")
+                        else:
+                            st.write(f"Items: `{section_data.get('item_count', 0)}`")
+
+                        with st.expander("📄 Raw JSON (click to expand)", expanded=False):
+                            st.json(section_data.get("raw", section_data), expanded=True)
                     else:
-                        st.write(f"Endpoint: `{section_data.get('endpoint', '—')}`")
-                        st.write(f"Items: `{section_data.get('item_count', 0)}`")
+                        st.error(f"❌ Failed to retrieve this section")
+                        st.markdown(f"**Error:** {section_data.get('error', 'Unknown error')}")
 
-                    with st.expander("📄 Raw JSON (click to expand)", expanded=False):
-                        st.json(section_data.get("raw", section_data), expanded=True)
+            # TODO: Download + Clear
 
-            # Download + Clear
             col_dl, col_clear = st.columns(2)
             with col_dl:
                 st.download_button(

@@ -415,60 +415,142 @@ def collect_redfish_sections(bmc_ip, port, use_https, username, password, select
         if section == "BIOS":
 
             # Reusing get_redfish_bios
-
-            bios_data = get_redfish_bios(bmc_ip, port, use_https, username, password)
-            if bios_data:
-                result["BIOS"] = bios_data
-                result["BIOS"]["endpoint"] = "/redfish/v1/Systems/*/Bios"
+            try:
+                bios_data = get_redfish_bios(bmc_ip, port, use_https, username, password)
+                if bios_data:
+                    result["BIOS"] = bios_data
+                    result["BIOS"]["endpoint"] = "/redfish/v1/Systems/*/Bios"
+                    result["BIOS"]["success"] = True
+                    result["BIOS"]["error"] = None
+                else:
+                    result["BIOS"] = {
+                        "success": False,
+                        "error": "BIOS data not returned",
+                        "endpoint": "/redfish/v1/Systems/*/Bios",
+                        "total_settings": 0
+                    }
+            except Exception as e:
+                result["BIOS"] = {
+                    "success": False,
+                    "error": str(e),
+                    "endpoint": "/redfish/v1/Systems/*/Bios",
+                    "total_settings": 0
+                }
 
         elif section == "Processors":
-            data = fetch_redfish_endpoint(bmc_ip, port, use_https, username, password, "/redfish/v1/Systems/1/Processors")
-            if data:
-                result["Processors"] = {"raw": data, "item_count": len(data.get("Members", [])), "endpoint": "/redfish/v1/Systems/1/Processors"}
+            try:
+                data = fetch_redfish_endpoint(bmc_ip, port, use_https, username, password, "/redfish/v1/Systems/1/Processors")
+                if data:
+                    result["Processors"] = {"raw": data, "item_count": len(data.get("Members", [])), "endpoint": "/redfish/v1/Systems/1/Processors", "success": True, "error": None}
+                else:
+                    result["Processors"] = {"success": False, "error": "No data returned", "endpoint": "/redfish/v1/Systems/1/Processors", "item_count": 0}
+            except Exception as e:
+                result["Processors"] = {"success": False, "error": str(e), "endpoint": "/redfish/v1/Systems/1/Processors", "item_count": 0}
 
         elif section == "Memory":
-            data = fetch_redfish_endpoint(bmc_ip, port, use_https, username, password, "/redfish/v1/Systems/1/Memory")
-            if data:
-                result["Memory"] = {"raw": data, "item_count": len(data.get("Members", [])), "endpoint": "/redfish/v1/Systems/1/Memory"}
+            try:
+                data = fetch_redfish_endpoint(bmc_ip, port, use_https, username, password, "/redfish/v1/Systems/1/Memory")
+                if data:
+                    result["Memory"] = {"raw": data, "item_count": len(data.get("Members", [])), "endpoint": "/redfish/v1/Systems/1/Memory", "success": True, "error": None}
+                else:
+                    result["Memory"] = {"success": False, "error": "No data returned", "endpoint": "/redfish/v1/Systems/1/Memory", "item_count": 0}
+            except Exception as e:
+                result["Memory"] = {"success": False, "error": str(e), "endpoint": "/redfish/v1/Systems/1/Memory", "item_count": 0}
 
         elif section == "PCIeSlots":
-            data = fetch_redfish_endpoint(bmc_ip, port, use_https, username, password, "/redfish/v1/Chassis/1/PCIeSlots")
-            if data:
-                result["PCIeSlots"] = {"raw": data, "item_count": len(data.get("Members", [])), "endpoint": "/redfish/v1/Chassis/1/PCIeSlots"}
+            try:
+                data = fetch_redfish_endpoint(bmc_ip, port, use_https, username, password, "/redfish/v1/Chassis/1/PCIeSlots")
+                if data:
+                    result["PCIeSlots"] = {"raw": data, "item_count": len(data.get("Members", [])), "endpoint": "/redfish/v1/Chassis/1/PCIeSlots", "success": True, "error": None}
+                else:
+                    result["PCIeSlots"] = {"success": False, "error": "No data returned", "endpoint": "/redfish/v1/Chassis/1/PCIeSlots", "item_count": 0}
+            except Exception as e:
+                result["PCIeSlots"] = {"success": False, "error": str(e), "endpoint": "/redfish/v1/Chassis/1/PCIeSlots", "item_count": 0}
 
         elif section == "Thermal":
-            data = fetch_redfish_endpoint(bmc_ip, port, use_https, username, password, "/redfish/v1/Chassis/1/ThermalSubsystem")
-            if data:
-                result["Thermal"] = {"raw": data, "item_count": len(data.get("Temperatures", [])), "endpoint": "/redfish/v1/Chassis/1/ThermalSubsystem"}
+            try:
+                data = fetch_redfish_endpoint(bmc_ip, port, use_https, username, password, "/redfish/v1/Chassis/1/ThermalSubsystem")
+                if data:
+                    result["Thermal"] = {"raw": data, "item_count": len(data.get("Temperatures", [])), "endpoint": "/redfish/v1/Chassis/1/ThermalSubsystem", "success": True, "error": None}
+                else:
+                    result["Thermal"] = {"success": False, "error": "No data returned", "endpoint": "/redfish/v1/Chassis/1/ThermalSubsystem", "item_count": 0}
+            except Exception as e:
+                result["Thermal"] = {"success": False, "error": str(e), "endpoint": "/redfish/v1/Chassis/1/ThermalSubsystem", "item_count": 0}
 
         elif section == "Power":
-            data = fetch_redfish_endpoint(bmc_ip, port, use_https, username, password, "/redfish/v1/Chassis/1/Power")
-            if data:
-                result["Power"] = {"raw": data, "item_count": len(data.get("PowerSupplies", [])), "endpoint": "/redfish/v1/Chassis/1/Power"}
+            try:
+                data = fetch_redfish_endpoint(bmc_ip, port, use_https, username, password, "/redfish/v1/Chassis/1/Power")
+                if data:
+                    result["Power"] = {"raw": data, "item_count": len(data.get("PowerSupplies", [])), "endpoint": "/redfish/v1/Chassis/1/Power", "success": True, "error": None}
+                else:
+                    result["Power"] = {"success": False, "error": "No data returned", "endpoint": "/redfish/v1/Chassis/1/Power", "item_count": 0}
+            except Exception as e:
+                result["Power"] = {"success": False, "error": str(e), "endpoint": "/redfish/v1/Chassis/1/Power", "item_count": 0}
 
         elif section == "FirmwareInventory":
-            data = fetch_redfish_endpoint(bmc_ip, port, use_https, username, password, "/redfish/v1/UpdateService/FirmwareInventory")
-            if data:
-                result["FirmwareInventory"] = {"raw": data, "item_count": len(data.get("Members", [])), "endpoint": "/redfish/v1/UpdateService/FirmwareInventory"}
+            try:
+                data = fetch_redfish_endpoint(bmc_ip, port, use_https, username, password, "/redfish/v1/UpdateService/FirmwareInventory")
+                if data:
+                    result["FirmwareInventory"] = {"raw": data, "item_count": len(data.get("Members", [])), "endpoint": "/redfish/v1/UpdateService/FirmwareInventory", "success": True, "error": None}
+                else:
+                    result["FirmwareInventory"] = {"success": False, "error": "No data returned", "endpoint": "/redfish/v1/UpdateService/FirmwareInventory", "item_count": 0}
+            except Exception as e:
+                result["FirmwareInventory"] = {"success": False, "error": str(e), "endpoint": "/redfish/v1/UpdateService/FirmwareInventory", "item_count": 0}
 
         elif section == "ChassisSensors":
-            data = fetch_redfish_endpoint(bmc_ip, port, use_https, username, password, "/redfish/v1/Chassis/1")
-            if data:
-                result["ChassisSensors"] = {"raw": data, "item_count": 0, "endpoint": "/redfish/v1/Chassis/1"}
+            try:
+                data = fetch_redfish_endpoint(bmc_ip, port, use_https, username, password, "/redfish/v1/Chassis/1")
+                if data:
+                    result["ChassisSensors"] = {"raw": data, "item_count": 0, "endpoint": "/redfish/v1/Chassis/1", "success": True, "error": None}
+                else:
+                    result["ChassisSensors"] = {"success": False, "error": "No data returned", "endpoint": "/redfish/v1/Chassis/1", "item_count": 0}
+            except Exception as e:
+                result["ChassisSensors"] = {"success": False, "error": str(e), "endpoint": "/redfish/v1/Chassis/1", "item_count": 0}
 
     # TODO: Add any custom endpoints the user typed
 
     for ep in custom_endpoints:
         if ep.strip():
-            data = fetch_redfish_endpoint(bmc_ip, port, use_https, username, password, ep.strip())
-            if data:
+            try:
+                data = fetch_redfish_endpoint(bmc_ip, port, use_https, username, password, ep.strip())
+                if data:
+                    key = ep.strip().strip("/").replace("/", "_").replace(":", "")
+                    count = len(data.get("Members", [])) if isinstance(data, dict) and "Members" in data else 0
+                    result[key] = {"raw": data, "item_count": count, "endpoint": ep.strip(), "success": True, "error": None}
+                else:
+                    key = ep.strip().strip("/").replace("/", "_").replace(":", "")
+                    result[key] = {"success": False, "error": "No data returned", "endpoint": ep.strip(), "item_count": 0}
+            except Exception as e:
                 key = ep.strip().strip("/").replace("/", "_").replace(":", "")
-                count = 0
-                if isinstance(data, dict):
-                    if "Members" in data and isinstance(data["Members"], list):
-                        count = len(data["Members"])
-                    elif "Members@odata.count" in data:
-                        count = data["Members@odata.count"]
-                result[key] = {"raw": data, "item_count": count, "endpoint": ep.strip()}
+                result[key] = {"success": False, "error": str(e), "endpoint": ep.strip(), "item_count": 0}
 
     return result if result else None
+
+def test_redfish_connection(bmc_ip, port, use_https, username, password):
+
+    # Connection test
+
+    try:
+        data = fetch_redfish_endpoint(
+            bmc_ip=bmc_ip, port=port, use_https=use_https,
+            username=username, password=password,
+            endpoint="/redfish/v1"
+        )
+        if not data:
+            return {"success": False, "message": "Could not reach Redfish service"}
+
+        sys_data = fetch_redfish_endpoint(
+            bmc_ip=bmc_ip, port=port, use_https=use_https,
+            username=username, password=password,
+            endpoint="/redfish/v1/Systems/1"
+        ) or {}
+
+        return {
+            "success": True,
+            "manufacturer": sys_data.get("Manufacturer", "Unknown Vendor"),
+            "model": sys_data.get("Model", "Unknown Model"),
+            "firmware": sys_data.get("BiosVersion", sys_data.get("FirmwareVersion", "—")),
+            "message": "Connection successful"
+        }
+    except Exception as e:
+        return {"success": False, "message": str(e)}
