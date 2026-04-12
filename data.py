@@ -552,3 +552,49 @@ def test_redfish_connection(bmc_ip, port, use_https, username, password):
         }
     except Exception as e:
         return {"success": False, "message": str(e)}
+
+def count_tokens(text):
+
+    # Used to count the tokens sent to AI
+
+    if not text:
+        return 0
+    return len(text) // 4
+
+def build_redfish_context(selected_sections, redfish_data):
+    
+    # Used to build the cotex for redfish info 
+
+    if not redfish_data or not selected_sections:
+        return "No Redfish sections selected."
+    
+    lines = ["=== REDFISH BMC DATA (user-selected sections) ==="]
+    
+    for section in selected_sections:
+        if section not in redfish_data:
+            continue
+        data = redfish_data[section]
+        lines.append(f"\n--- {section} ---")
+        
+        if section == "BIOS" and "attributes" in data:
+            # Show some actual BIOS settings
+            attrs = data["attributes"]
+            lines.append(f"Total settings: {len(attrs)}")
+            for k in list(attrs.keys())[:15]:   # first 15 keys so it's readable
+                lines.append(f"  {k}: {attrs[k]}")
+        elif section == "Processors" and "Members" in data.get("raw", {}):
+            for p in data["raw"].get("Members", [])[:3]:
+                lines.append(f"  Processor: {p.get('Model', '—')} | Cores: {p.get('TotalCores', '—')}")
+        elif section == "Memory" and "Members" in data.get("raw", {}):
+            lines.append(f"  DIMMs: {len(data['raw'].get('Members', []))}")
+            for m in data["raw"].get("Members", [])[:4]:
+                lines.append(f"    {m.get('CapacityMiB', 0)//1024} GB @ {m.get('OperatingSpeedMhz', '—')} MHz")
+        elif section == "PCIeSlots":
+            lines.append(f"  Slots detected: {data.get('item_count', 0)}")
+            for s in data.get("raw", {}).get("Members", [])[:6]:
+                lines.append(f"    Slot: {s.get('SlotNumber', '?')} - {s.get('LinkStatus', '—')}")
+        else:
+            # fallback for other sections
+            lines.append(f"  Items: {data.get('item_count', 0)}")
+    
+    return "\n".join(lines)

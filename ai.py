@@ -6,7 +6,7 @@ import re
 from datetime import datetime
 from litellm import completion
 
-from data import load_sections, load_dynamic_df, build_system_profile, take_ai_snapshot, build_full_raw_text, get_bios_context, get_redfish_groups
+from data import load_sections, load_dynamic_df, build_system_profile, take_ai_snapshot, build_full_raw_text, get_bios_context, get_redfish_groups, build_redfish_context, count_tokens
 
 # TODO: Generic AI calls
 
@@ -312,7 +312,7 @@ def get_ai_threshold():
 
 # TODO: OS Performance analyzer
 
-def perform_hft_analysis(selected_profile):
+def perform_hft_analysis(selected_profile, include_redfish=False, selected_redfish_sections=None):
 
     if "sections" not in st.session_state:
         st.info("Run Data tab first")
@@ -369,24 +369,69 @@ def perform_hft_analysis(selected_profile):
                 width='stretch', hide_index=True
             )
 
+        redfish_ctx = ""
+
+        if include_redfish and selected_redfish_sections:
+            redfish_ctx = build_redfish_context(selected_redfish_sections, st.session_state.redfish_data)
+            st.markdown("**Redfish BMC Data (user-selected)**")
+            st.code(redfish_ctx, language=None)
+    
+    # Build final context + Token Control
+
+    preview_text = f"""FULL HARDWARE SUMMARY:
+    {full_hardware_summary}
+
+    DETAILED PROFILE DATA:
+    {full_profile_data}
+
+    DYNAMIC VALUES:
+    {json.dumps(dynamic_snapshot, indent=2) if dynamic_snapshot else "None"}
+
+    {redfish_ctx if redfish_ctx else "No Redfish data included."}"""
+
+    manual_enabled = st.checkbox("Enable manual context editing", value=False, key="os_manual_enabled")
+
+    if manual_enabled:
+        if "os_manual_context" not in st.session_state:
+            st.session_state.os_manual_context = preview_text
+        edited_context = st.text_area(
+            "Final context sent to AI (edit freely)",
+            value=st.session_state.os_manual_context,
+            height=500,
+            key="os_manual_text"
+        )
+        final_context = edited_context
+    else:
+        final_context = preview_text
+        st.session_state.pop("os_manual_context", None)
+
+    # Live token count
+    total_tokens = count_tokens(final_context)
+    st.markdown(f"**Total tokens being sent to AI:** {total_tokens}")
+
+    if manual_enabled:
+        st.session_state.final_os_context = st.session_state.get("os_manual_text", preview_text)
+    else:
+        st.session_state.final_os_context = preview_text
+
     # TODO: Run Button + AI Call
 
     if st.button("🚀 Run OS Analysis", type="primary", width='stretch'):
 
+        if st.session_state.get("os_manual_enabled", False):
+            final_context_for_ai = st.session_state.get("os_manual_text", preview_text)
+        else:
+            final_context_for_ai = preview_text
+
         system_prompt = f"""
-        
         You are an expert HFT/low-latency Linux performance engineer.
 
-        FULL HARDWARE SUMMARY (always included — use this as base context):
+        FULL CONTEXT PROVIDED BY USER (respect any manual edits the user made):
+        {final_context_for_ai}
 
-        {full_hardware_summary}
-
-        DETAILED DATA FOR THE SELECTED PROFILE ({selected_profile}):
-
-        {full_profile_data}
-
-        CURRENT DYNAMIC VALUES (profile-specific):
-        {json.dumps(dynamic_snapshot, indent=2) if dynamic_snapshot else "None"}
+        IMPORTANT:
+        - LOCAL data comes from sections_config.xlsx running on the host
+        - REDFISH BMC data comes directly from the BMC (more accurate hardware inventory)
 
         You MUST analyze this system and output **EXACTLY** a valid JSON object.
         Do not add any explanation, markdown, or extra text before or after the JSON.

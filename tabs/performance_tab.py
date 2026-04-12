@@ -65,9 +65,26 @@ def render_os_config():
     profiles = get_available_hft_profiles()
     selected_profile = st.selectbox("Select HFT Profile", profiles, index=0)
 
+    include_redfish = False
+    selected_redfish_sections = []
+    if "redfish_data" in st.session_state and st.session_state.redfish_data:
+        include_redfish = st.checkbox(
+            "Include Redfish BMC data in OS Analysis",
+            value=False,
+            key="os_include_redfish"
+        )
+        if include_redfish:
+            available = list(st.session_state.redfish_data.keys())
+            selected_redfish_sections = st.multiselect(
+                "Redfish sections to include",
+                options=available,
+                default=[],
+                key="os_redfish_sections"
+            )
+
     # TODO: Call AI
 
-    perform_hft_analysis(selected_profile)
+    perform_hft_analysis(selected_profile, include_redfish, selected_redfish_sections)
 
     # TODO: Formatting Results
 
@@ -196,7 +213,7 @@ def render_bios():
     selected_profile = st.selectbox("Select HFT Profile", profiles, index=0, key="bios_profile")
 
     # TODO: Redfish profile Selector 
-    
+
     redfish_data = None
     if "redfish_data" in st.session_state and "BIOS" in st.session_state.redfish_data:
         redfish_data = st.session_state.redfish_data["BIOS"]
