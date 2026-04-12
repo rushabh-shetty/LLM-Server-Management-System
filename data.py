@@ -577,11 +577,10 @@ def build_redfish_context(selected_sections, redfish_data):
         lines.append(f"\n--- {section} ---")
         
         if section == "BIOS" and "attributes" in data:
-            # Show some actual BIOS settings
             attrs = data["attributes"]
             lines.append(f"Total settings: {len(attrs)}")
-            for k in list(attrs.keys())[:15]:   # first 15 keys so it's readable
-                lines.append(f"  {k}: {attrs[k]}")
+            for k, v in attrs.items():
+                lines.append(f"  {k}: {v}")
         elif section == "Processors" and "Members" in data.get("raw", {}):
             for p in data["raw"].get("Members", [])[:3]:
                 lines.append(f"  Processor: {p.get('Model', '—')} | Cores: {p.get('TotalCores', '—')}")
