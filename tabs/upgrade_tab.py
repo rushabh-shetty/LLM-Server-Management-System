@@ -47,9 +47,28 @@ def render_upgrade_tab():
         format="%d"
     )
 
+    ## Redfish
+
+    include_redfish = False
+    selected_redfish_sections = []
+    if "redfish_data" in st.session_state and st.session_state.redfish_data:
+        include_redfish = st.checkbox(
+            "Include Redfish BMC data in Upgrade Analysis",
+            value=True,
+            key="upgrade_include_redfish"
+        )
+        if include_redfish:
+            available = list(st.session_state.redfish_data.keys())
+            selected_redfish_sections = st.multiselect(
+                "Redfish sections to include",
+                options=available,
+                default=[s for s in ["Processors", "Memory", "PCIeSlots", "BIOS"] if s in available],
+                key="upgrade_redfish_sections"
+            )
+
     # TODO: AI Call
 
-    perform_upgrade_analysis(focus_display, budget if budget > 0 else None)
+    perform_upgrade_analysis(focus_display, budget if budget > 0 else None, include_redfish, selected_redfish_sections)
 
     # TODO: Parsing output
 
@@ -59,7 +78,8 @@ def render_upgrade_tab():
 
         ## Full Analysis
         with st.expander("Full Upgrade Analysis", expanded=True):
-            st.markdown(last.get("analysis_md", "No analysis was generated."))
+            md = last.get("analysis_md", "No analysis was generated.")
+            st.markdown(md if isinstance(md, str) else "**Parsing failed** — re-run the analysis.")
 
         ## RECOMMENDATIONS — checkbox inside each card
         st.subheader("🔧 Recommended Hardware Upgrades")
@@ -71,10 +91,19 @@ def render_upgrade_tab():
 
         # Default: everything selected
         if "selected_upgrade_recs" not in st.session_state:
-            st.session_state.selected_upgrade_recs = {rec.get("id") for rec in recommendations if rec.get("id")}
+            recs = last.get("recommendations", [])
+            if isinstance(recs, list):
+                st.session_state.selected_upgrade_recs = {
+                    rec.get("id") for rec in recs 
+                    if isinstance(rec, dict) and rec.get("id")
+                }
+            else:
+                st.session_state.selected_upgrade_recs = set()
 
         # Render cards with checkbox inside
         for rec in recommendations:
+            if not isinstance(rec, dict):
+                continue
             rec_id = rec.get("id")
             if not rec_id:
                 continue
