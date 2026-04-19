@@ -562,10 +562,29 @@ def render_application_code():
 
     ctx = st.session_state.get("appcode_context", {})
 
+    # Redfish
+
+    include_redfish = False
+    selected_redfish_sections = []
+    if "redfish_data" in st.session_state and st.session_state.redfish_data:
+        include_redfish = st.checkbox(
+            "Enhance analysis with Redfish hardware inventory",
+            value=True,   # default ON
+            key="appcode_include_redfish"
+        )
+        if include_redfish:
+            available = list(st.session_state.redfish_data.keys())
+            selected_redfish_sections = st.multiselect(
+                "Redfish sections to include",
+                options=available,
+                default=[s for s in ["Processors", "Memory", "PCIeSlots"] if s in available],
+                key="appcode_redfish_sections"
+            )
+
     # TODO: Run AI
 
     if ctx and "error" not in ctx and ctx.get("hot_paths"):
-        perform_application_code_analysis(selected_profile, ctx)
+        perform_application_code_analysis(selected_profile, ctx, include_redfish, selected_redfish_sections)
     else:
         st.info("Please scan a project folder first to unlock the analysis button.")
 
