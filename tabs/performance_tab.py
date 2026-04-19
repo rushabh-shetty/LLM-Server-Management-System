@@ -219,11 +219,13 @@ def render_bios():
         redfish_data = st.session_state.redfish_data["BIOS"]
         st.caption(f"✅ Redfish BIOS data ready ({redfish_data.get('total_settings', 0)} settings from {st.session_state.redfish_config.get('bmc_ip', '—')}:{st.session_state.redfish_config.get('port', '—')})")
 
-    include_redfish = st.checkbox(
-        "Include Redfish BMC BIOS data in AI analysis",
-        value=False,
-        key="bios_include_redfish"
-    )
+    include_redfish = False
+    if "redfish_data" in st.session_state and st.session_state.redfish_data and "BIOS" in st.session_state.redfish_data:
+        include_redfish = st.checkbox(
+            "Include Redfish BMC BIOS data in AI analysis",
+            value=False,
+            key="bios_include_redfish"
+        )
 
     if include_redfish and redfish_data and "attributes" in redfish_data:
         groups_dict = get_redfish_groups(redfish_data["attributes"])
@@ -238,9 +240,6 @@ def render_bios():
         st.session_state.bios_selected_redfish_groups = selected_groups
     else:
         st.session_state.pop("bios_selected_redfish_groups", None)
-
-    if not redfish_data:
-        st.info("Want richer BIOS data? Go to the **Data** tab → enable Redfish BMC BIOS Collection")
 
     # TODO: Call AI
 

@@ -550,25 +550,59 @@ def perform_bios_analysis(selected_profile):
         st.markdown("**Redfish BMC Data**")
         st.code(f"BIOS: {redfish_ctx}", language=None)
 
+    # Build final context + Token Control (outside the Preview expander)
+    preview_text = f"""FULL HARDWARE SUMMARY:
+    {full_hardware_summary}
+
+    DETAILED PROFILE SECTIONS:
+    {full_profile_data}
+
+    LOCAL BIOS/FIRMWARE DATA:
+    {bios_text or "None"}
+
+    REDFISH BMC DATA:
+    {redfish_ctx if 'redfish_ctx' in locals() else "No Redfish data included."}"""
+
+    manual_enabled = st.checkbox("Enable manual context editing", value=False, key="bios_manual_enabled")
+
+    if manual_enabled:
+        if "bios_manual_context" not in st.session_state:
+            st.session_state.bios_manual_context = preview_text
+        edited_context = st.text_area(
+            "Final context sent to AI (edit freely)",
+            value=st.session_state.bios_manual_context,
+            height=500,
+            key="bios_manual_text"
+        )
+        final_context = edited_context
+    else:
+        final_context = preview_text
+        st.session_state.pop("bios_manual_context", None)
+
+    # Live token count
+    total_tokens = count_tokens(final_context)
+    st.markdown(f"**Total tokens being sent to AI:** {total_tokens}")
+
+    if manual_enabled:
+        st.session_state.final_bios_context = st.session_state.get("bios_manual_text", preview_text)
+    else:
+        st.session_state.final_bios_context = preview_text
+
     # TODO: Run Button + AI Call
 
     if st.button("🚀 Run BIOS Analysis", type="primary", use_container_width=True):
+
+        if st.session_state.get("bios_manual_enabled", False):
+            final_context_for_ai = st.session_state.get("bios_manual_text", preview_text)
+        else:
+            final_context_for_ai = preview_text
+        
         system_prompt = f"""
 
         You are an expert HFT BIOS/UEFI tuning engineer (2025 era).
 
-        FULL HARDWARE SUMMARY:
-        {full_hardware_summary}
-
-        DETAILED PROFILE SECTIONS:
-        {full_profile_data}
-
-        CURRENT BIOS/FIRMWARE SETTINGS (LOCAL — from dmidecode/cpupower/lspci running on the OS):
-
-        {bios_text or "None"}
-
-        REDFISH BMC DATA:
-        BIOS: {redfish_ctx}
+        FULL CONTEXT PROVIDED BY USER (respect any manual edits the user made):
+        {final_context_for_ai}
 
         IMPORTANT:
         - Local data comes directly from the operating system.
