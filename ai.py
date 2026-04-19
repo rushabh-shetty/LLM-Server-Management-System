@@ -614,7 +614,7 @@ def perform_bios_analysis(selected_profile):
 
 # TODO: Compiler performace analysis 
 
-def perform_compiler_analysis(selected_profile, build_context):
+def perform_compiler_analysis(selected_profile, build_ctx, include_redfish=False, selected_redfish_sections=None):
 
     if "sections" not in st.session_state:
         st.info("Run Data tab first")
@@ -634,13 +634,13 @@ def perform_compiler_analysis(selected_profile, build_context):
 
     full_profile_data = build_full_raw_text(profile_sections)
 
-    build_text = json.dumps(build_context, indent=2) if build_context else "No build system scanned yet."
+    build_text = json.dumps(build_ctx, indent=2) if build_ctx else "No build system scanned yet."
 
     context = {
         "short_summary": full_hardware_summary,
         "selected_profile": selected_profile,
         "full_profile_data": full_profile_data,
-        "build_context": build_context,
+        "build_context": build_ctx,
     }
 
     # TODO: Preview
@@ -654,21 +654,72 @@ def perform_compiler_analysis(selected_profile, build_context):
         st.markdown("**Detected Build System**")
         st.code(build_text, language="json")
 
+        # Redfish
+
+        redfish_ctx = ""
+        if include_redfish and selected_redfish_sections:
+            redfish_ctx = build_redfish_context(selected_redfish_sections, st.session_state.redfish_data)
+            st.markdown("**Redfish BMC Data (user-selected)**")
+            st.code(redfish_ctx, language=None)
+
+    # Build final context + Token Control
+
+    preview_text = f"""FULL HARDWARE SUMMARY:
+    {full_hardware_summary}
+
+    DETAILED PROFILE SECTIONS:
+    {full_profile_data}
+
+    BUILD SYSTEM:
+    {build_text}
+
+    {redfish_ctx if redfish_ctx else "No Redfish data included."}"""
+
+    manual_enabled = st.checkbox("Enable manual context editing", value=False, key="compiler_manual_enabled")
+
+    if manual_enabled:
+        if "compiler_manual_context" not in st.session_state:
+            st.session_state.compiler_manual_context = preview_text
+        edited_context = st.text_area(
+            "Final context sent to AI (edit freely)",
+            value=st.session_state.compiler_manual_context,
+            height=500,
+            key="compiler_manual_text"
+        )
+        final_context = edited_context
+    else:
+        final_context = preview_text
+        st.session_state.pop("compiler_manual_context", None)
+
+    # Live token count
+    total_tokens = count_tokens(final_context)
+    st.markdown(f"**Total tokens being sent to AI:** {total_tokens}")
+
+    if manual_enabled:
+        st.session_state.final_compiler_context = st.session_state.get("compiler_manual_text", preview_text)
+    else:
+        st.session_state.final_compiler_context = preview_text
+
     # TODO: Run Button + AI Call
 
     if st.button("🚀 Run Compiler Analysis", type="primary", use_container_width=True):
-        system_prompt = f"""
 
+        # Read latest manual value inside button
+
+        if st.session_state.get("compiler_manual_enabled", False):
+            final_context_for_ai = st.session_state.get("compiler_manual_text", preview_text)
+        else:
+            final_context_for_ai = preview_text
+
+        system_prompt = f"""
         You are an expert HFT compiler engineer (2025 era).
 
-        FULL HARDWARE SUMMARY:
-        {full_hardware_summary}
+        FULL CONTEXT PROVIDED BY USER (respect any manual edits the user made):
+        {final_context_for_ai}
 
-        DETAILED PROFILE SECTIONS:
-        {full_profile_data}
-
-        USER PROJECT BUILD SYSTEM:
-        {build_text}
+        IMPORTANT:
+        - LOCAL data comes from sections_config.xlsx running on the host
+        - REDFISH BMC data comes directly from the BMC (more accurate hardware inventory)
 
         YOU MUST output **EXACTLY** this JSON and nothing else:
 

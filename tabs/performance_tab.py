@@ -377,10 +377,29 @@ def render_compiler():
 
     build_ctx = st.session_state.get("compiler_build_context", {})
 
+    # TODO: Redfish
+
+    include_redfish = False
+    selected_redfish_sections = []
+    if "redfish_data" in st.session_state and st.session_state.redfish_data:
+        include_redfish = st.checkbox(
+            "Enhance analysis with Redfish hardware inventory",
+            value=True,   # default ON for Compiler
+            key="compiler_include_redfish"
+        )
+        if include_redfish:
+            available = list(st.session_state.redfish_data.keys())
+            selected_redfish_sections = st.multiselect(
+                "Redfish sections to include",
+                options=available,
+                default=[s for s in ["Processors", "Memory", "PCIeSlots"] if s in available],
+                key="compiler_redfish_sections"
+            )
+
     # TODO: Run AI
 
     if build_ctx and "error" not in build_ctx and build_ctx.get("build_files"):
-        perform_compiler_analysis(selected_profile, build_ctx)
+        perform_compiler_analysis(selected_profile, build_ctx, include_redfish, selected_redfish_sections)
     else:
         st.info("Please scan a project folder first to unlock the analysis button.")
 
