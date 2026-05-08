@@ -352,6 +352,17 @@ def render_compiler():
     profiles = get_available_hft_profiles()
     selected_profile = st.selectbox("Select HFT Profile", profiles, index=0, key="compiler_profile")
 
+    # TODO: ADVANCED HOT-PATH SETTINGS
+
+    if st.checkbox("Advanced hot-path detection settings", key="appcode_show_advanced"):
+        kw = st.text_input("Keywords (comma separated)", value="order, trade, match, book, risk, price, position, fill, cancel, latency", key="app_kw")
+        st.session_state.hotpath_keywords = [k.strip().lower() for k in kw.split(",") if k.strip()]
+        c1, c2, c3, c4 = st.columns(4)
+        with c1: st.session_state.hotpath_lines_before = st.number_input("Lines before", 0, 20, 3, key="a_lb")
+        with c2: st.session_state.hotpath_lines_after  = st.number_input("Lines after", 0, 20, 3, key="a_la")
+        with c3: st.session_state.hotpath_max_chars    = st.number_input("Max chars", 50, 2000, 400, key="a_mc")
+        with c4: st.session_state.hotpath_max_per_file = st.number_input("Max per file", 1, 10, 1, key="a_mp")
+
     # TODO: Project path + Scan
 
     col_path, col_scan = st.columns([4, 1], vertical_alignment="bottom")
@@ -536,6 +547,17 @@ def render_application_code():
 
     profiles = get_available_hft_profiles()
     selected_profile = st.selectbox("Select HFT Profile", profiles, index=0, key="appcode_profile")
+
+    # TODO: ADVANCED HOT-PATH SETTINGS
+
+    if st.checkbox("Advanced hot-path detection settings", key="compiler_show_advanced_application"):
+        kw = st.text_input("Keywords (comma separated)", value="order, trade, match, book, risk, price, position, fill, cancel, latency", key="compiler_kw")
+        st.session_state.hotpath_keywords = [k.strip().lower() for k in kw.split(",") if k.strip()]
+        c1, c2, c3, c4 = st.columns(4)
+        with c1: st.session_state.hotpath_lines_before = st.number_input("Lines before", 0, 20, 3, key="c_lb")
+        with c2: st.session_state.hotpath_lines_after  = st.number_input("Lines after", 0, 20, 3, key="c_la")
+        with c3: st.session_state.hotpath_max_chars    = st.number_input("Max chars", 50, 2000, 400, key="c_mc")
+        with c4: st.session_state.hotpath_max_per_file = st.number_input("Max per file", 1, 10, 1, key="c_mp")
 
     # TODO: Project path + Scan
 

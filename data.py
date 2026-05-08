@@ -194,6 +194,10 @@ def detect_build_system(project_path):
         "hot_paths": []                     # For Application Code
     }
 
+    # load advanced settings
+    if "hotpath_keywords" not in st.session_state:
+        st.session_state.hotpath_keywords = ["order", "trade", "match", "book", "risk", "price", "position", "fill", "cancel", "latency"]
+
     # TODO: Build file markers 
 
     build_markers = {
@@ -241,7 +245,7 @@ def detect_build_system(project_path):
 
     # TODO: HOT-PATH detection for Application code 
 
-    hft_keywords = ["order", "trade", "match", "book", "risk", "price", "position", "fill", "cancel", "latency"]
+    hft_keywords = st.session_state.get("hotpath_keywords", ["order", "trade", "match", "book", "risk", "price", "position", "fill", "cancel", "latency"])
     for root, _, files in os.walk(project_path, topdown=True, followlinks=False):
         for f in files:
             if f.endswith((".cpp", ".h", ".cc", ".rs", ".py", ".pyx", ".c")):
@@ -256,7 +260,7 @@ def detect_build_system(project_path):
                                 func = line.split("def ")[1].split("(")[0].strip()
                             elif "(" in line and any(x in line for x in ["int ", "void ", "fn "]):
                                 func = line.split("(")[0].split()[-1].strip()
-                            snippet = "\n".join(lines[max(0, i-3):i+4])[:400]
+                            snippet = "\n".join(lines[max(0, i - st.session_state.get("hotpath_lines_before", 3)):i + st.session_state.get("hotpath_lines_after", 3) + 1])[:st.session_state.get("hotpath_max_chars", 400)]
                             result["hot_paths"].append({
                                 "file": os.path.relpath(full, project_path),
                                 "line": i + 1,
@@ -264,7 +268,8 @@ def detect_build_system(project_path):
                                 "snippet": snippet,
                                 "why": "contains latency-critical keywords"
                             })
-                            break  # one hit per file
+                            if len(result["hot_paths"]) >= st.session_state.get("hotpath_max_per_file", 1):
+                                break
                 except:
                     pass
 
