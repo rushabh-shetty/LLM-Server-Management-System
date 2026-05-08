@@ -424,6 +424,24 @@ def perform_hft_analysis(selected_profile, include_redfish=False, selected_redfi
             final_context_for_ai = preview_text
 
         system_prompt = f"""
+
+        CRITICAL — READ FIRST AND OBEY WITHOUT EXCEPTION:
+        If the "FULL CONTEXT PROVIDED BY USER" section below is empty, shorter than 150 words, or clearly deleted, output EXACTLY this JSON and stop. No analysis, no recommendations, no extra text:
+        {{
+            "analysis": "⚠️ Insufficient context — user cleared the manual editor. Restore context and try again.",
+            "recommendations": []
+        }}
+
+        ROUNDING RULE — OBEY STRICTLY:
+        - You may ONLY use facts, numbers, commands, hardware details, or metrics that appear EXPLICITLY in the "FULL CONTEXT PROVIDED BY USER" section.
+        - If the context is long but does NOT contain enough relevant HFT/hardware information, output EXACTLY this JSON and stop:
+        {{
+            "analysis": "The provided context does not contain sufficient relevant information. Please restore the default context or add real system details before running analysis.",
+            "recommendations": []
+        }}
+        - NEVER invent CPU models, latency numbers, commands, or recommendations that are not directly in the context.
+        - If you are unsure whether a detail exists in the context, treat it as missing and refuse to recommend.
+
         You are an expert HFT/low-latency Linux performance engineer.
 
         FULL CONTEXT PROVIDED BY USER (respect any manual edits the user made):
@@ -599,6 +617,23 @@ def perform_bios_analysis(selected_profile):
         
         system_prompt = f"""
 
+        CRITICAL — READ FIRST AND OBEY WITHOUT EXCEPTION:
+        If the "FULL CONTEXT PROVIDED BY USER" section below is empty, shorter than 150 words, or clearly deleted, output EXACTLY this JSON and stop. No analysis, no recommendations, no extra text:
+        {{
+            "analysis": "⚠️ Insufficient context — user cleared the manual editor. Restore context and try again.",
+            "recommendations": []
+        }}
+
+        ROUNDING RULE — OBEY STRICTLY:
+        - You may ONLY use facts, numbers, commands, hardware details, or metrics that appear EXPLICITLY in the "FULL CONTEXT PROVIDED BY USER" section.
+        - If the context is long but does NOT contain enough relevant HFT/hardware information, output EXACTLY this JSON and stop:
+        {{
+            "analysis": "The provided context does not contain sufficient relevant information. Please restore the default context or add real system details before running analysis.",
+            "recommendations": []
+        }}
+        - NEVER invent CPU models, latency numbers, commands, or recommendations that are not directly in the context.
+        - If you are unsure whether a detail exists in the context, treat it as missing and refuse to recommend.
+        
         You are an expert HFT BIOS/UEFI tuning engineer (2025 era).
 
         FULL CONTEXT PROVIDED BY USER (respect any manual edits the user made):
@@ -746,6 +781,24 @@ def perform_compiler_analysis(selected_profile, build_ctx, include_redfish=False
             final_context_for_ai = preview_text
 
         system_prompt = f"""
+
+        CRITICAL — READ FIRST AND OBEY WITHOUT EXCEPTION:
+        If the "FULL CONTEXT PROVIDED BY USER" section below is empty, shorter than 150 words, or clearly deleted, output EXACTLY this JSON and stop. No analysis, no recommendations, no extra text:
+        {{
+            "analysis": "⚠️ Insufficient context — user cleared the manual editor. Restore context and try again.",
+            "recommendations": []
+        }}
+
+        ROUNDING RULE — OBEY STRICTLY:
+        - You may ONLY use facts, numbers, commands, hardware details, or metrics that appear EXPLICITLY in the "FULL CONTEXT PROVIDED BY USER" section.
+        - If the context is long but does NOT contain enough relevant HFT/hardware information, output EXACTLY this JSON and stop:
+        {{
+            "analysis": "The provided context does not contain sufficient relevant information. Please restore the default context or add real system details before running analysis.",
+            "recommendations": []
+        }}
+        - NEVER invent CPU models, latency numbers, commands, or recommendations that are not directly in the context.
+        - If you are unsure whether a detail exists in the context, treat it as missing and refuse to recommend.
+
         You are an expert HFT compiler engineer (2025 era).
 
         FULL CONTEXT PROVIDED BY USER (respect any manual edits the user made):
@@ -889,6 +942,24 @@ def perform_application_code_analysis(selected_profile, code_context, include_re
             final_context_for_ai = preview_text
 
         system_prompt = f"""
+
+        CRITICAL — READ FIRST AND OBEY WITHOUT EXCEPTION:
+        If the "FULL CONTEXT PROVIDED BY USER" section below is empty, shorter than 150 words, or clearly deleted, output EXACTLY this JSON and stop. No analysis, no recommendations, no extra text:
+        {{
+            "analysis": "⚠️ Insufficient context — user cleared the manual editor. Restore context and try again.",
+            "recommendations": []
+        }}
+
+        ROUNDING RULE — OBEY STRICTLY:
+        - You may ONLY use facts, numbers, commands, hardware details, or metrics that appear EXPLICITLY in the "FULL CONTEXT PROVIDED BY USER" section.
+        - If the context is long but does NOT contain enough relevant HFT/hardware information, output EXACTLY this JSON and stop:
+        {{
+            "analysis": "The provided context does not contain sufficient relevant information. Please restore the default context or add real system details before running analysis.",
+            "recommendations": []
+        }}
+        - NEVER invent CPU models, latency numbers, commands, or recommendations that are not directly in the context.
+        - If you are unsure whether a detail exists in the context, treat it as missing and refuse to recommend.
+
         You are an expert HFT low-latency code reviewer (2025 era).
 
         FULL CONTEXT PROVIDED BY USER (respect any manual edits the user made):
@@ -1050,6 +1121,24 @@ def perform_upgrade_analysis(focus_display: list, budget: float | None = None, i
             final_context_for_ai = preview_text
 
         system_prompt = f"""
+
+        CRITICAL — READ FIRST AND OBEY WITHOUT EXCEPTION:
+        If the "FULL CONTEXT PROVIDED BY USER" section below is empty, shorter than 150 words, or clearly deleted, output EXACTLY this JSON and stop. No analysis, no recommendations, no extra text:
+        {{
+            "analysis": "⚠️ Insufficient context — user cleared the manual editor. Restore context and try again.",
+            "recommendations": []
+        }}
+
+        ROUNDING RULE — OBEY STRICTLY:
+        - You may ONLY use facts, numbers, commands, hardware details, or metrics that appear EXPLICITLY in the "FULL CONTEXT PROVIDED BY USER" section.
+        - If the context is long but does NOT contain enough relevant HFT/hardware information, output EXACTLY this JSON and stop:
+        {{
+            "analysis": "The provided context does not contain sufficient relevant information. Please restore the default context or add real system details before running analysis.",
+            "recommendations": []
+        }}
+        - NEVER invent CPU models, latency numbers, commands, or recommendations that are not directly in the context.
+        - If you are unsure whether a detail exists in the context, treat it as missing and refuse to recommend.
+
         You are a senior HFT hardware engineer (2025 era).
 
         FULL CONTEXT PROVIDED BY USER (respect any manual edits the user made):
