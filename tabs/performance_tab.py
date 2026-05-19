@@ -33,7 +33,7 @@ def render_performance_tab():
     
     st.header("Performance Optimizer")
 
-    os_config, bios, compiler, application_code, agentic_optimizer = st.tabs(["OS Config", "BIOS", "Compiler", "Application Code", "Agentic Optimizer"])
+    os_config, bios, compiler, application_code, = st.tabs(["OS Config", "BIOS", "Compiler", "Application Code"])
 
     with os_config:
 
