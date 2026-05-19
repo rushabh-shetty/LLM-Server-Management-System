@@ -9,8 +9,8 @@ from requests.auth import HTTPBasicAuth
 
 @st.cache_data(ttl="10min", show_spinner=False)
 def load_sections():
-    excel_file = "sections_config_mac.xlsx"
-    #excel_file = "sections_config.xlsx"
+    #excel_file = "sections_config_mac.xlsx"
+    excel_file = "sections_config.xlsx"
     
     if not os.path.isfile(excel_file):    
         return None
