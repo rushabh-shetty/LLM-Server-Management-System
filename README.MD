@@ -7,13 +7,13 @@
 ## Table of Content
 
 - [Summary](#-summary) 
-- [Key Features](#key-features)
-- [Prerequisites](#prerequisites)
-- [Setting up Mockup Redfish Server](#setting-up-mockup-redfish-server)
-- [Installation](#installation)
-- [Usage](#usage)
+- [Key Features](#-key-features)
+- [Prerequisites](#-prerequisites)
+- [Setting up Mockup Redfish Server](#setting-up-mockup-redfish-server-(testing-environment))
+- [Installation](#-installation)
+- [Usage](#-usage)
 - [Typical Workflow for Optimizing a Redfish Server](#typical-workflow-for-optimizing-a-redfish-server)
-- [Authors](#👥-authors)
+- [Authors](#-authors)
 - [Final Report](#final-report)
 
 ## 📌 Summary
