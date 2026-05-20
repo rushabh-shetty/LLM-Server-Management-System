@@ -6,7 +6,7 @@
 
 ## Table of Content
 
-- [Summary](#summary) 
+- [Summary](#-summary) 
 - [Key Features](#key-features)
 - [Prerequisites](#prerequisites)
 - [Setting up Mockup Redfish Server](#setting-up-mockup-redfish-server)
