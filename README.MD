@@ -8,10 +8,11 @@
 
 - [Summary](#-summary) 
 - [Key Features](#-key-features)
-- [Prerequisites](#-prerequisites)
-- [Setting up Mockup Redfish Server](#-setting-up-the-redfish-mockup-server-testing-environment)
+- [Repository Organization](#repository-organization)
 - [Installation](#-installation)
 - [Usage](#-usage)
+- [Prerequisites](#-prerequisites)
+- [Setting up the Mockup Redfish Server](#-setting-up-the-redfish-mockup-server-testing-environment)
 - [Typical Workflow for Optimizing a Redfish Server](#typical-workflow-for-optimizing-a-redfish-server)
 - [Authors](#-authors)
 - [Final Report](#final-report)
@@ -27,6 +28,58 @@ The **LLM Server Management System** is a Streamlit application built to optimiz
 - **AI-Driven Performance Analysis**: Automated insights identifying the impact, risk, and "why HFT" context for specific hardware components using LLMs.
 - **Hardware Upgrade Advice**: Intelligent suggestions for optimizing critical components.
 - **Real-Time Monitoring**: Dynamic metrics tracking numeric thresholds of essential HFT server metrics.
+
+## Repository Organization
+<ul>
+    <li>group_05_project
+        <ul>
+            <li>imgs
+            <li>tabs
+                <ul>
+                    <li>agentic_optimizer.py
+                    <li>ai_settings_tab.py
+                    <li>collect_data_tab.py
+                    <li>history_tab.py
+                    <li>monitor_tab.py
+                    <li>performance_tab.py
+                    <li>upgrade_tab.py
+                </ul>
+            </li>
+            <li>README.md
+            <li>Server.xlsx
+            <li>ai.py
+            <li>ai_config.json
+            <li>ai_config.py
+            <li>data.py
+            <li>main.py
+            <li>monitoring_history.csv
+            <li>requirements.txt
+            <li>sections_config.xlsx
+            <li>sections_config_mac.xlsx
+        <ul>
+    </li>
+</ul>
+
+## 📦 Installation
+Clone this repository:
+
+```bash
+git clone [https://github.com/rushabh-shetty/LLM-Server-Management-System.git](https://github.com/rushabh-shetty/LLM-Server-Management-System.git)
+cd LLM-Server-Management-System
+```
+
+Install the required Python packages:
+```bash
+pip install -r requirements.txt
+```
+(Optional) Configure your AI models in ai_config.json or the Settings tab with your preferred provider keys (OpenAI, Grok, etc.).
+
+## 💻 Usage
+To run the Streamlit application, set your entry point to main.py:
+
+```bash
+streamlit run main.py
+```
 
 ## 🛠 Prerequisites
 
@@ -68,27 +121,6 @@ pip install -r requirements.txt
 ### Run the mockup server
 ```bash
 python3 redfishMockupServer.py
-```
-
-## 📦 Installation
-Clone this repository:
-
-```bash
-git clone [https://github.com/rushabh-shetty/LLM-Server-Management-System.git](https://github.com/rushabh-shetty/LLM-Server-Management-System.git)
-cd LLM-Server-Management-System
-```
-
-Install the required Python packages:
-```bash
-pip install -r requirements.txt
-```
-(Optional) Configure your AI models in ai_config.json or the Settings tab with your preferred provider keys (OpenAI, Grok, etc.).
-
-## 💻 Usage
-To run the Streamlit application, set your entry point to main.py:
-
-```bash
-streamlit run main.py
 ```
 
 ## Typical Workflow for Optimizing a Redfish Server:
