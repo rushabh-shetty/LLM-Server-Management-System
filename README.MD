@@ -9,7 +9,7 @@
 - [Summary](#-summary) 
 - [Key Features](#-key-features)
 - [Prerequisites](#-prerequisites)
-- [Setting up Mockup Redfish Server](#setting-up-mockup-redfish-server-(testing-environment))
+- [Setting up Mockup Redfish Server](#-setting-up-the-redfish-mockup-server-(testing-environment))
 - [Installation](#-installation)
 - [Usage](#-usage)
 - [Typical Workflow for Optimizing a Redfish Server](#typical-workflow-for-optimizing-a-redfish-server)
