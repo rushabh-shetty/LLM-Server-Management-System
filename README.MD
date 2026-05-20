@@ -4,7 +4,7 @@
 ![Streamlit](https://img.shields.io/badge/Streamlit-App-FF4B4B)
 ![Redfish](https://img.shields.io/badge/Redfish-BMC-green)
 
-## 📌 Executive Summary
+## 📌 Summary
 
 The **LLM Server Management System** is a Streamlit application built to optimize High-Frequency Trading (HFT) systems through integrated data collection, real-time monitoring, AI-driven performance analysis, and hardware upgrade advice. By leveraging configurable AI models (such as Grok, OpenAI, etc.) and Redfish BMC integrations, this tool helps engineers and traders pinpoint bottlenecks, configure dynamic thresholds for critical components, and continuously tune their infrastructure for ultra-low latency.
 
@@ -80,26 +80,26 @@ streamlit run main.py
 ```
 
 ## Typical Workflow for Optimizing a Redfish Server:
-Data Collection
+### Data Collection
+<ul>
+    <li>Navigate to the Data tab.
+    <li>Click to collect system information.
+    <li>Run the "Collect Redfish BIOS" command.
+</ul>
 
-Navigate to the Data tab.
+### Performance Analysis
+<ul>
+    <li>Navigate to the Performance tab.
+    <li>Go to the BIOS sub-tab.
+    <li>Click on Run BIOS Analysis.
+</ul>
 
-Click to collect system information.
-
-Run the "Collect Redfish BIOS" command.
-
-Performance Analysis
-
-Navigate to the Performance tab.
-
-Go to the BIOS sub-tab.
-
-Click on Run BIOS Analysis. The integrated LLM will assess the current configurations and output high-impact recommendations to improve HFT latency.
+#### The integrated LLM will assess the current configurations and output high-impact recommendations to improve HFT latency.
 
 ## 👥 Authors
 <ul>
-    <li>Alejandro Chavez Ramos - ajc21@illinois.edu
-    <li>Rushabh Shetty - shetty6@illinois.edu
+    <li><b>Alejandro Chavez Ramos</b> - ajc21@illinois.edu
+    <li><b>Rushabh Shetty</b> - shetty6@illinois.edu
 </ul>
 
 
