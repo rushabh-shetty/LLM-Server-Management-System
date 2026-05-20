@@ -152,4 +152,4 @@ python3 redfishMockupServer.py
 #### The integrated LLM will assess the current configurations and output high-impact recommendations to improve HFT latency.
 
 ## 📖 Final Report
-Final report for this project: [Report]()
+Final report for this project: [Report](https://gitlab.engr.illinois.edu/ie497_ie597_independent_study_spring_2026/ie497_spring_2026_group_05/group_05_project/-/blob/main/Final%20Report.pdf?ref_type=heads)
