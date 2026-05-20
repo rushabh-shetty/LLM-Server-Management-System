@@ -8,14 +8,14 @@
 
 - [Summary](#-summary) 
 - [Key Features](#-key-features)
-- [Repository Organization](#repository-organization)
+- [Repository Organization](#-repository-organization)
 - [Installation](#-installation)
 - [Usage](#-usage)
 - [Prerequisites](#-prerequisites)
 - [Setting up the Mockup Redfish Server](#-setting-up-the-redfish-mockup-server-testing-environment)
-- [Typical Workflow for Optimizing a Redfish Server](#typical-workflow-for-optimizing-a-redfish-server)
+- [Typical Workflow for Optimizing a Redfish Server](#-typical-workflow-for-optimizing-a-redfish-server)
 - [Authors](#-authors)
-- [Final Report](#final-report)
+- [Final Report](#-final-report)
 
 ## 📌 Summary
 
@@ -29,7 +29,7 @@ The **LLM Server Management System** is a Streamlit application built to optimiz
 - **Hardware Upgrade Advice**: Intelligent suggestions for optimizing critical components.
 - **Real-Time Monitoring**: Dynamic metrics tracking numeric thresholds of essential HFT server metrics.
 
-## Repository Organization
+## 🪜 Repository Organization
 <ul>
     <li>group_05_project
         <ul>
@@ -123,7 +123,7 @@ pip install -r requirements.txt
 python3 redfishMockupServer.py
 ```
 
-## Typical Workflow for Optimizing a Redfish Server:
+## 🌊 Typical Workflow for Optimizing a Redfish Server:
 ### Data Collection
 <ul>
     <li>Navigate to the Data tab.
@@ -150,4 +150,4 @@ LikedIn: www.linkedin.com/in/ajc21 <br>
 LinkedIn: https://www.linkedin.com/in/rushabh-shetty/ <br>
 <img src= "imgs/Headshot_Rushabh_Shetty.jpeg" alt="Rushabh Shetty" width="150"/><br>
 
-## Final Report
+## 📖 Final Report
