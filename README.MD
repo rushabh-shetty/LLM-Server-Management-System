@@ -19,7 +19,7 @@
 
 ## 👥 Authors
 **Alejandro Chavez Ramos** - ajc21@illinois.edu<br>
-LikedIn: www.linkedin.com/in/ajc21 <br>
+LinkedIn: www.linkedin.com/in/ajc21 <br>
 <img src="imgs/Alejandro.jpeg" alt="Alejandro" width="150"/> <br>
 
 
@@ -151,3 +151,4 @@ python3 redfishMockupServer.py
 #### The integrated LLM will assess the current configurations and output high-impact recommendations to improve HFT latency.
 
 ## 📖 Final Report
+Final report for this project: [Report]()
