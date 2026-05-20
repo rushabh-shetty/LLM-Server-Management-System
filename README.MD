@@ -13,7 +13,7 @@
 - [Installation](#installation)
 - [Usage](#usage)
 - [Typical Workflow for Optimizing a Redfish Server](#typical-workflow-for-optimizing-a-redfish-server)
-- [Authors](#👥authors)
+- [Authors](#👥-authors)
 - [Final Report](#final-report)
 
 ## 📌 Summary
