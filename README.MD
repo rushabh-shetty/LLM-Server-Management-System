@@ -31,40 +31,55 @@ The **LLM Server Management System** is a Streamlit application built to optimiz
 
 If you do not have a live server and want to test the application's data collection capabilities, you can use the DMTF Redfish Mockup Server. **Please clone this repository outside of the main LLM-Server-Management-System directory.**
 
+
+### Clone the Mockup Server repository
 ```bash
-# Clone the Mockup Server repository
 git clone [https://github.com/DMTF/Redfish-Mockup-Server.git](https://github.com/DMTF/Redfish-Mockup-Server.git)
+```
 
-# Navigate to the directory
+### Navigate to the directory
+```bash
 cd Redfish-Mockup-Server
+```
 
-# Create and activate a virtual environment
+### Create and activate a virtual environment
+```bash
 python3 -m venv venv
 source venv/bin/activate  # On Windows use: venv\Scripts\activate
+```
 
-# Install requirements
+### Install requirements
+```bash
 pip install -r requirements.txt
+```
 
-# Run the mockup server
+### Run the mockup server
+```bash
 python3 redfishMockupServer.py
-📦 Installation
+```
+
+## 📦 Installation
 Clone this repository:
 
-Bash
+```bash
 git clone [https://github.com/rushabh-shetty/LLM-Server-Management-System.git](https://github.com/rushabh-shetty/LLM-Server-Management-System.git)
 cd LLM-Server-Management-System
-Install the required Python packages:
+```
 
-Bash
+Install the required Python packages:
+```bash
 pip install -r requirements.txt
+```
 (Optional) Configure your AI models in ai_config.json or the Settings tab with your preferred provider keys (OpenAI, Grok, etc.).
 
-💻 Usage
+## 💻 Usage
 To run the Streamlit application, set your entry point to main.py:
 
-Bash
+```bash
 streamlit run main.py
-Typical Workflow for Optimizing a Redfish Server:
+```
+
+## Typical Workflow for Optimizing a Redfish Server:
 Data Collection
 
 Navigate to the Data tab.
@@ -81,10 +96,14 @@ Go to the BIOS sub-tab.
 
 Click on Run BIOS Analysis. The integrated LLM will assess the current configurations and output high-impact recommendations to improve HFT latency.
 
-👥 Authors
-Alejandro Chavez Ramos - ajc21@illinois.edu
+## 👥 Authors
+<ul>
+    <li>Alejandro Chavez Ramos - ajc21@illinois.edu
+    <li>Rushabh Shetty - shetty6@illinois.edu
+</ul>
 
-Rushabh Shetty - shetty6@illinois.edu
+
+
 
 
 
