@@ -55,6 +55,7 @@ The **LLM Server Management System** is a Streamlit application built to optimiz
                     <li>upgrade_tab.py
                 </ul>
             </li>
+            <li>Final Report.pdf
             <li>README.md
             <li>Server.xlsx
             <li>ai.py
