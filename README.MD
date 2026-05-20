@@ -6,6 +6,7 @@
 
 ## Table of Content
 
+- [Authors](#-authors)
 - [Summary](#-summary) 
 - [Key Features](#-key-features)
 - [Repository Organization](#-repository-organization)
@@ -14,8 +15,17 @@
 - [Prerequisites](#-prerequisites)
 - [Setting up the Mockup Redfish Server](#-setting-up-the-redfish-mockup-server-testing-environment)
 - [Typical Workflow for Optimizing a Redfish Server](#-typical-workflow-for-optimizing-a-redfish-server)
-- [Authors](#-authors)
 - [Final Report](#-final-report)
+
+## 👥 Authors
+**Alejandro Chavez Ramos** - ajc21@illinois.edu<br>
+LikedIn: www.linkedin.com/in/ajc21 <br>
+<img src="imgs/Alejandro.jpeg" alt="Alejandro" width="150"/> <br>
+
+
+**Rushabh Shetty** - shetty6@illinois.edu<br>
+LinkedIn: https://www.linkedin.com/in/rushabh-shetty/ <br>
+<img src= "imgs/Headshot_Rushabh_Shetty.jpeg" alt="Rushabh Shetty" width="150"/><br>
 
 ## 📌 Summary
 
@@ -139,15 +149,5 @@ python3 redfishMockupServer.py
 </ul>
 
 #### The integrated LLM will assess the current configurations and output high-impact recommendations to improve HFT latency.
-
-## 👥 Authors
-**Alejandro Chavez Ramos** - ajc21@illinois.edu<br>
-LikedIn: www.linkedin.com/in/ajc21 <br>
-<img src="imgs/Alejandro.jpeg" alt="Alejandro" width="150"/> <br>
-
-
-**Rushabh Shetty** - shetty6@illinois.edu
-LinkedIn: https://www.linkedin.com/in/rushabh-shetty/ <br>
-<img src= "imgs/Headshot_Rushabh_Shetty.jpeg" alt="Rushabh Shetty" width="150"/><br>
 
 ## 📖 Final Report
