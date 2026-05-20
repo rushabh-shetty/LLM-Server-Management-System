@@ -56,7 +56,7 @@ The **LLM Server Management System** is a Streamlit application built to optimiz
             <li>requirements.txt
             <li>sections_config.xlsx
             <li>sections_config_mac.xlsx
-        <ul>
+        </ul>
     </li>
 </ul>
 
