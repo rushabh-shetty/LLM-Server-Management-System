@@ -10,7 +10,6 @@ from datetime import datetime
 from data import load_sections, load_dynamic_df
 from ai import get_ai_threshold
 
-@st.fragment
 def render_monitor_tab():
 
     st.header("Live System Monitoring")
@@ -178,12 +177,12 @@ def render_monitor_tab():
 
     with col_ctrl1:
         start_label = "Start Monitoring" if not st.session_state.monitoring_running else "Pause Monitoring"
-        if st.button(start_label, type="primary", width="stretch"):
+        if st.button(start_label, type="primary", use_container_width=True):
             st.session_state.monitoring_running = not st.session_state.monitoring_running
             st.rerun()
     
     with col_ctrl2:
-        if st.button("Stop & Clear Live Graphs", type="secondary", width="stretch"):
+        if st.button("Stop & Clear Live Graphs", type="secondary", use_container_width=True):
             st.session_state.monitoring_running = False
             st.session_state.monitor_history = {}
             st.session_state.active_alerts = {}
@@ -195,7 +194,6 @@ def render_monitor_tab():
 
     ## Live Monitoring Fragment
 
-    @st.fragment
     def live_monitoring():
 
         placeholder = st.empty()
