@@ -676,7 +676,7 @@ def perform_bios_analysis(selected_profile):
             model=cfg["model"],
             temperature=0.0,
             top_p=cfg["top_p"],
-            max_tokens=10000,
+            max_tokens=cfg["max_tokens"],
             api_key=cfg.get("api_key"),
             api_base=cfg.get("base_url")
         )
@@ -838,7 +838,7 @@ def perform_compiler_analysis(selected_profile, build_ctx, include_redfish=False
             model=cfg["model"],
             temperature=0.0,
             top_p=cfg["top_p"],
-            max_tokens=10000,
+            max_tokens=cfg["max_tokens"],
             api_key=cfg.get("api_key"),
             api_base=cfg.get("base_url")
         )
@@ -999,7 +999,7 @@ def perform_application_code_analysis(selected_profile, code_context, include_re
             model=cfg["model"],
             temperature=0.0,
             top_p=cfg["top_p"],
-            max_tokens=12000,
+            max_tokens=cfg["max_tokens"],
             api_key=cfg.get("api_key"),
             api_base=cfg.get("base_url")
         )
@@ -1190,7 +1190,7 @@ def perform_upgrade_analysis(focus_display: list, budget: float | None = None, i
             model=cfg["model"],
             temperature=0.0,                     # foricng 0.0 for perfect JSON (upgrade is special)
             top_p=cfg["top_p"],
-            max_tokens=10000,
+            max_tokens=cfg["max_tokens"],
             api_key=cfg.get("api_key"),
             api_base=cfg.get("base_url")
         )
